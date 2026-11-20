@@ -125,7 +125,7 @@ printf '%s\n' 'd Library/Filesystems/osxfuse.fs' 'd Library/Filesystems/osxfuse.
   'd Library/Frameworks/OSXFUSE.framework/Versions/A' 'f Library/Frameworks/OSXFUSE.framework/Versions/A/OSXFUSE' \
   'd usr' 'd usr/local' 'd usr/local/lib' 'f usr/local/lib/libosxfuse.2.dylib' \
   'l usr/local/lib/libosxfuse_i64.2.dylib -> libosxfuse.2.dylib' > "$T/osxfuse3.types"
-OSXFUSE3_SAYS="osxfuse 3|  /Library/Frameworks/OSXFUSE.framework/Versions/A/OSXFUSE|  /usr/local/lib/libosxfuse.2.dylib|  /usr/local/lib/libosxfuse_i64.2.dylib|Uninstall osxfuse 3 first|pkgutil --files ID|sudo pkgutil --forget ID"
+OSXFUSE3_SAYS="osxfuse 3|  /Library/Frameworks/OSXFUSE.framework/Versions/A/OSXFUSE|  /usr/local/lib/libosxfuse.2.dylib|  /usr/local/lib/libosxfuse_i64.2.dylib|Uninstall osxfuse 3 first|pkgutil --only-files --files ID|sudo pkgutil --forget ID"
 mkvol "$V" 10.9.5
 receipt "$V" com.github.osxfuse.pkg.Core "$T/osxfuse3.types"
 old_ifs=$IFS; IFS='|'

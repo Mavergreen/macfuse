@@ -27,7 +27,7 @@ macfuse_takeover() {
         printf '%s\n' "$_u" | sed 's|^|  /|'
         echo "Uninstall osxfuse 3 first, with its own uninstaller (the Remove button in its pane in System Preferences),"
         echo "or by removing the files its receipts list (pkgutil --pkgs | grep com.github.osxfuse.pkg; then for each,"
-        echo "pkgutil --files ID) and forgetting them (sudo pkgutil --forget ID). com.github.osxfuse.pkg.SSHFS is sshfs, not"
+        echo "pkgutil --only-files --files ID) and forgetting them (sudo pkgutil --forget ID). com.github.osxfuse.pkg.SSHFS is sshfs, not"
         echo "osxfuse: keep it. Then $_again."
       } >&2
       return 1
