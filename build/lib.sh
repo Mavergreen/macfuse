@@ -12,6 +12,20 @@ export REPO_ROOT MACFUSE_PREFIX RECAULK_PREFIX
 MACFUSE_OSRELEASE_SHIM="$MACFUSE_PREFIX/lib/libmfosrelease.dylib"
 RECAULK_SYSTEM_DYLIB="$RECAULK_PREFIX/lib/libRecaulkSystem.dylib"
 export MACFUSE_OSRELEASE_SHIM RECAULK_SYSTEM_DYLIB
+# spec: 2026-11-19-macfuse-product/global-constraints.md "Upstream's paths" -- one line per path third-party FUSE binaries and builds
+#       have built in: the path (relative to the volume) and the tree path under MACFUSE_PREFIX its symlink names (build/stage.sh)
+MACFUSE_LINKS="Library/Filesystems/macfuse.fs fs
+Library/Frameworks/macFUSE.framework Frameworks/macFUSE.framework
+usr/local/lib/libfuse.2.dylib lib/libfuse.2.dylib
+usr/local/lib/libfuse.dylib lib/libfuse.dylib
+usr/local/lib/libfuse.la lib/libfuse.la
+usr/local/lib/libfuse3.4.dylib lib/libfuse3.4.dylib
+usr/local/lib/libfuse3.dylib lib/libfuse3.dylib
+usr/local/lib/pkgconfig/fuse.pc lib/pkgconfig/fuse.pc
+usr/local/lib/pkgconfig/fuse3.pc lib/pkgconfig/fuse3.pc
+usr/local/include/fuse.h include/fuse.h
+usr/local/include/fuse include/fuse
+usr/local/include/fuse3 include/fuse3"
 
 # spec: 2026-11-19-macfuse-product/global-constraints.md -- UPSTREAM_VERSION holds the bare upstream version (5.5.0); it is read from the file, never spelled here
 upstream_version() { tr -d '[:space:]' < "$REPO_ROOT/UPSTREAM_VERSION"; echo; }

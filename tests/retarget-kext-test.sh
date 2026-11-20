@@ -114,6 +114,7 @@ diff "$T/libs.want" "$T/libs" > "$T/diff" || { cat "$T/diff" >&2; fail "OSBundle
 ! grep -q 'com\.apple\.kpi\.private' "$P" || fail "Info.plist names com.apple.kpi.private"
 [ "$(plist_string "$P" CFBundleIdentifier)" = io.macfuse.filesystems.macfuse.21 ] || fail "CFBundleIdentifier is not io.macfuse.filesystems.macfuse.21"
 [ -n "$UP_VER" ] && [ "$(plist_string "$P" CFBundleVersion)" = "$UP_VER" ] || fail "CFBundleVersion is not upstream's '$UP_VER'"
+# platform: guarded macOS-only call -- command -v plutil, so a host without it skips the lint
 if command -v plutil > /dev/null 2>&1; then plutil -lint "$P" > /dev/null || fail "plutil -lint rejects the rewritten Info.plist"; fi
 
 echo "== an upstream plist naming com.apple.kpi.private"
