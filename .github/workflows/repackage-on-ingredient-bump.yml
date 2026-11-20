@@ -1,0 +1,23 @@
+name: repackage-on-ingredient-bump
+
+# spec: mavergreen-conventions SKILL.md "Consuming a Mavergreen toolchain" -- an ingredient pin that moves on main (clang22,
+#       Drydock, Recaulk) dispatches release.yml with local_release=true, which cuts and publishes .N+1. UPSTREAM_VERSION and
+#       the source pins that move with it are this port's own upstream (a new upstream cuts .1 by itself). upstream-405 and
+#       sshfs-250 are CI-only takeover test inputs, never shipped, so a change to them repackages nothing.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'components/**'
+      - '!components/upstream-405/**'
+      - '!components/sshfs-250/**'
+
+permissions: {}
+
+jobs:
+  repackage:
+    permissions:
+      actions: write
+    uses: Mavergreen/shipyard/.github/workflows/repackage-on-ingredient-bump.yml@v1
+    with:
+      own-upstream-paths: UPSTREAM_VERSION components/macfuse-sources/pins

@@ -6,7 +6,7 @@ name: on-mavericks
 #       (tests/vm/upgrade-scenario.sh); C installs pinned upstream macFUSE 4.0.5 and an sshfs, builds a binary against 4.0.5,
 #       takes it over (tests/vm/takeover-scenario.sh) and runs the smoke with that binary; A then runs decision D's alert
 #       path (tests/vm/alert-path.sh), which moves kexts aside and so runs only on a disposable guest. Any panic, hang or
-#       skip (77) fails. A product release.yml is to call it, with publish needing it; this repo has none yet.
+#       skip (77) fails. release.yml calls it, and its publish job needs it.
 # spec: 2026-11-19-macfuse-product/task-11-report.md (controller ruling, 2026-11-20) -- the RecaulkKPI.kext the kext links
 #       comes from the pinned Recaulk release's pkg, so this job fails until a Recaulk release ships it (20261120.2 does not)
 on:

@@ -3,14 +3,92 @@
 **This README has not been read or edited by a human yet.** Until it has, this project cannot cut
 its first release.
 
-macFUSE for Mac OS X 10.9 Mavericks: upstream macFUSE's userspace libraries and tools, and its
-kernel extension, adapted to run on 10.9 (x86_64 only).
+[macFUSE](https://macfuse.github.io) 5 for Mac OS X 10.9 Mavericks: upstream's userspace libraries
+(libfuse 2 and 3, `macFUSE.framework`), its mount and load helpers, and its kernel extension,
+adapted to run on 10.9 (x86_64 only). File systems built for macFUSE, such as sshfs, mount on 10.9
+again.
 
 It is an unofficial community port for the Mavergreen family. It is not affiliated with or endorsed
-by the macFUSE project. Upstream's license is in `LICENSE`, including its clause 4: redistributing
-the binary form bundled with commercial software is not allowed without upstream's written permission.
+by the macFUSE project.
 
-Everything installs under `/usr/local/mavergreen/macfuse/`, linked from upstream's usual paths.
+So far it has been tested only on Mac OS X 10.9.5 (build 13F1911), in a virtual machine.
+
+## Install
+
+1. Install [Recaulk](https://github.com/Mavergreen/recaulk/releases), at the version this release
+   names or newer. The installer refuses to go on without it: the kernel extension links Recaulk's
+   kernel back-fill, and the mount helper loads its system library.
+2. Install `macfuse-<version>.pkg` from this repo's
+   [releases](https://github.com/Mavergreen/macfuse/releases). It installs only on Mac OS X 10.9;
+   on a newer macOS, install [macFUSE](https://macfuse.github.io) itself.
+
+Everything installs under `/usr/local/mavergreen/macfuse/`. Links at upstream's own paths point
+into it, so programs and builds that expect macFUSE find it where they always have:
+
+- `/Library/Filesystems/macfuse.fs` and `/Library/Frameworks/macFUSE.framework`
+- `/usr/local/lib/libfuse.2.dylib`, `libfuse.dylib`, `libfuse.la`, `libfuse3.4.dylib`, `libfuse3.dylib`,
+  and `pkgconfig/fuse.pc` and `fuse3.pc`
+- `/usr/local/include/fuse.h`, `fuse/` and `fuse3/`
+
+The kernel extension loads the first time something mounts. An updater checks for new releases
+once a day. To remove the product, unmount every FUSE volume, then run
+`sudo mavergreen uninstall macfuse`; it refuses while a FUSE volume is mounted, and unloads the kernel
+extension.
+
+## Coming from macFUSE 4
+
+If upstream macFUSE 4.x is installed, installing this takes it over:
+
+- The installer refuses, and changes nothing, while any FUSE volume is mounted. Unmount them
+  (`umount PATH`, or eject them in the Finder), then run it again.
+- It also refuses if one of upstream's paths holds a file that no macFUSE installer receipt lists. It
+  never overwrites a file it cannot account for; move such files aside and run it again.
+- It unloads upstream's kernel extension, removes exactly the files upstream's core and preference
+  pane receipts list, forgets those two receipts, and removes upstream's `io.macfuse.*` launch agents
+  and daemons. The macFUSE preference pane goes with them.
+- It leaves sshfs alone: its binary and its receipt stay, and it keeps working against this libfuse 2.
+- The osxfuse compatibility names that macFUSE 4 installed (`/Library/Frameworks/OSXFUSE.framework`,
+  `/usr/local/lib/libosxfuse.2.dylib` and `libosxfuse_i64.2.dylib`) come back as links to this
+  product's framework and libfuse 2.
+- Programs built against macFUSE 4's libfuse 2 keep working: it has the same install name and
+  compatibility version.
+- sshfs 2.x and other libfuse file systems no longer put themselves in the background after
+  mounting. They stop with "forking after mount is not supported", which is upstream macFUSE 5's
+  libfuse. Run them with `-f` and background them yourself, for example `sshfs host: ~/mnt -f &`.
+- Each mount of a multithreaded file system prints "fuse: forking a threaded process is unsafe" once.
+  It is harmless: it is upstream's diagnostic, and the forked child only starts `mount_macfuse`.
+
+Uninstalling this product does not bring macFUSE 4 back.
+
+## Known limits
+
+- **Updates wait until nothing is mounted.** The installer refuses an update while a FUSE volume is
+  mounted, because the kernel extension cannot unload. Until the family's updater can say so,
+  Installer reports a generic failure; the updater tries again at its next check.
+- **A missing kernel extension gets upstream's wrong message.** If the product's `macfuse.kext` is
+  missing, mounting fails and upstream's notice says "Unsupported macOS Version" and that the installed
+  macFUSE is too old. Reinstall the product. If Recaulk's kernel extension is missing instead, the mount
+  fails with "the file system is not available" and no notice.
+- **`mount_macfuse` crashes if run directly.** Upstream's `mount_macfuse` crashes when
+  `_FUSE_DAEMON_PATH` is unset and the mount fails. libfuse always sets it, so file systems are not
+  affected.
+- **Change notifications are unreliable for changes made outside the mount.** A kqueue watcher on a
+  FUSE volume (the Finder, `tail -f`) saw such a change at the next open through the mount in most
+  trials, but not all. Writes made through the mount always notify.
+- **`diskutil info` cannot see a macFUSE volume.** `diskutil unmount PATH` and `umount PATH` work.
+- **A rejected mount option holds a device for about 60 seconds.** When libfuse rejects a mount
+  option (sshfs 2.x, for example), no volume appears, but `mount_macfuse` keeps its `/dev/macfuseN`
+  until the kernel gives up on it, about a minute later.
+- **A killed file system's volume stays mounted.** I/O on it fails at once, and nothing hangs.
+  `umount PATH` clears it.
+- **No Swift `FileAttributeKey` properties.** `macFUSE.framework` lacks upstream's 16 Swift-only
+  `FileAttributeKey` properties (see below). Every `kGMUserFileSystem*Key` constant they wrap is
+  there.
+- **Links point at the boot volume.** The links at upstream's paths are absolute, so installing onto
+  a volume other than the startup disk makes them point at the startup disk's
+  `/usr/local/mavergreen/macfuse`.
+- **Installing resets `/usr/local/lib` and `/usr/local/include`** to owner root:wheel, mode 755, as
+  upstream's installer does. If a package manager made them yours or group-writable, set them back.
 
 ## MFMount is a C stand-in
 
@@ -53,3 +131,11 @@ It differs from upstream in three more ways:
   analyzer does not classify `objc_loadWeak`, does not follow an `objc_msgSend` pointer copied between
   registers, and does not resolve absolute install names such as `/usr/local/lib/libfuse.2.dylib`.
   The default compat guard passes.
+
+## License
+
+macFUSE is upstream's work, under upstream's BSD-style license, which is in `LICENSE` and ships
+with the product at `/Library/Filesystems/macfuse.fs/Contents/Resources/License.rtf`. Its clause 4
+does not allow redistributing the binary form bundled with commercial software, including
+downloading or installing it automatically as part of commercial software, without upstream's
+written permission.
