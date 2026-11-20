@@ -6,8 +6,9 @@
 #          and the analyzer's findings are exactly the rows REPO_ROOT/tests/lib/objc-measure.tsv lists for that
 #          basename (basename TAB times TAB exact finding line), each seen exactly as often as listed. Returns 1
 #          otherwise: another finding, a finding seen more or less often than listed (a row gone stale), a basename
-#          with no declaration or no rows, a failed check, or a shipyard whose Drydock is too old to measure.
-#          Needs REPO_ROOT and SHIPYARD_SCRIPTS.
+#          with no declaration or no rows, a failed check, a shipyard whose Drydock is too old to measure, or an
+#          UPSTREAM_VERSION other than the one tests/lib/goldens-upstream says the rows were measured for (printing the
+#          measured rows to refresh them with). Needs build/lib.sh sourced, REPO_ROOT and SHIPYARD_SCRIPTS.
 # spec: INGREDIENTS.md "Conformance deviations" objc-measure -- the three Drydock gaps, excused per binary by the exact finding
 #       and its exact count, so that a new send through a copied register or a new absolute dependency still fails, and a
 #       gap Drydock closes (fewer findings) forces the allowlist down with it
@@ -26,6 +27,13 @@ strict_measure() {
   sh "$SHIPYARD_SCRIPTS/deviations.sh" "$REPO_ROOT" > "$2.deviations" || { echo "strict: $_sm_b: deviations.sh cannot read INGREDIENTS.md" >&2; return 1; }
   awk -v b="$_sm_b" '$1 == "objc-measure" && $2 == b { found = 1 } END { exit !found }' "$2.deviations" ||
     { echo "strict: $_sm_b: cannot measure, and INGREDIENTS.md declares no objc-measure:$_sm_b" >&2; return 1; }
+  _sm_for="$(tr -d '[:space:]' < "$REPO_ROOT/tests/lib/goldens-upstream")"
+  _sm_up="$(upstream_version)"
+  if [ "$_sm_for" != "$_sm_up" ]; then
+    sort "$2.findings" | uniq -c | awk -v b="$_sm_b" '{ n = $1; sub(/^[ \t]*[0-9]+[ \t]/, ""); printf "%s\t%s\t%s\n", b, n, $0 }' >&2
+    echo "strict: $_sm_b: tests/lib/objc-measure.tsv was measured for upstream $_sm_for; refresh for upstream $_sm_up: replace $_sm_b's rows with the lines above, refresh the kext goldens in tests/retarget-kext-test.sh, then write $_sm_up to tests/lib/goldens-upstream (INGREDIENTS.md)" >&2
+    return 1
+  fi
   awk -F '\t' -v b="$_sm_b" -v allow="$REPO_ROOT/tests/lib/objc-measure.tsv" '
     BEGIN { while ((getline l < allow) > 0) { split(l, f, "\t"); if (f[1] == b) max[f[3]] = f[2] } }
     { seen[$0]++ }

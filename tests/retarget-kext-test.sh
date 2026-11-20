@@ -1,8 +1,8 @@
 #!/bin/sh
 # platform: host-agnostic
 # spec: 2026-11-19-macfuse-product/task-8-brief.md Steps 1 and 4 -- build/retarget-kext.sh on upstream's real debug tbz with a Recaulk
-#       root fixture: a thin x86_64 kext whose Mach-O is Drydock's golden output (271 undefined symbols, none _vnop_renamex_desc;
-#       4 relocations to _vnop_rename_desc) and whose OSBundleLibraries is exactly the five 10.9 KPIs plus the back-fill at its
+#       root fixture: a thin x86_64 kext whose Mach-O is Drydock's golden output (GOLDEN_UNDEFINED undefined symbols, none
+#       _vnop_renamex_desc; GOLDEN_RELOCS relocations to _vnop_rename_desc), measured for the upstream tests/lib/goldens-upstream names and whose OSBundleLibraries is exactly the five 10.9 KPIs plus the back-fill at its
 #       OSBundleCompatibleVersion. An upstream plist naming com.apple.kpi.private loses it; a second run of the recipe on the
 #       output fails. SKIPs (77) without MACFUSE_DEBUG_TBZ.
 set -eu
@@ -14,6 +14,9 @@ export REPO_ROOT
 fails=0
 fail() { printf 'FAIL: %s\n' "$*" >&2; fails=$((fails + 1)); }
 GOLDEN=73300026cc73eeef324774c9dd2e44dee4b4799566e7b1f61d38016d6f94e836
+GOLDEN_UNDEFINED=271
+GOLDEN_RELOCS=4
+GOLDEN_FOR="$(tr -d '[:space:]' < "$REPO_ROOT/tests/lib/goldens-upstream")"
 
 [ "$(cat "$REPO_ROOT/kext/macfuse.drydock")" = "$(printf 'arch x86_64\nvnodeop replace _vnop_renamex_desc _vnop_rename_desc')" ] ||
   fail "kext/macfuse.drydock is not exactly 'arch x86_64' and 'vnodeop replace _vnop_renamex_desc _vnop_rename_desc'"
@@ -96,13 +99,20 @@ for f in "$K" "$K/Contents" "$K/Contents/MacOS" "$B"; do [ "$(ls -ld "$f" | cut 
 archs="$("$CL/bin/llvm-lipo" -info "$B" | sed -n 's/.*: //p' | xargs)"
 [ "$archs" = x86_64 ] || fail "the kext's architectures are '$archs', not x86_64"
 got="$(sha256 "$B")"
-[ "$got" = "$GOLDEN" ] || fail "the kext's Mach-O has sha256 $got, not Drydock's golden $GOLDEN"
 "$CL/bin/llvm-nm" -u "$B" > "$T/nm"
-[ "$(wc -l < "$T/nm" | tr -d ' ')" = 271 ] || fail "llvm-nm -u lists $(wc -l < "$T/nm" | tr -d ' ') symbols, not 271"
+undefined="$(wc -l < "$T/nm" | tr -d ' ')"
 ! grep -qx '_vnop_renamex_desc' "$T/nm" || fail "_vnop_renamex_desc is still undefined"
 "$CL/bin/llvm-objdump" --macho -r "$B" > "$T/relocs"
-[ "$(grep -c '_vnop_rename_desc$' "$T/relocs")" = 4 ] || fail "$(grep -c '_vnop_rename_desc$' "$T/relocs") relocations name _vnop_rename_desc, not 4"
+relocs="$(grep -c '_vnop_rename_desc$' "$T/relocs")" || :
+[ "${relocs:-0}" -gt 0 ] || fail "no relocation names _vnop_rename_desc"
 ! grep -q '_vnop_renamex_desc' "$T/relocs" || fail "a relocation still names _vnop_renamex_desc"
+if [ "$V" = "$GOLDEN_FOR" ]; then
+  [ "$got" = "$GOLDEN" ] || fail "the kext's Mach-O has sha256 $got, not Drydock's golden $GOLDEN"
+  [ "$undefined" = "$GOLDEN_UNDEFINED" ] || fail "llvm-nm -u lists $undefined symbols, not $GOLDEN_UNDEFINED"
+  [ "$relocs" = "$GOLDEN_RELOCS" ] || fail "$relocs relocations name _vnop_rename_desc, not $GOLDEN_RELOCS"
+else
+  fail "the kext goldens were measured for upstream $GOLDEN_FOR; refresh for upstream $V: in tests/retarget-kext-test.sh set GOLDEN=$got, GOLDEN_UNDEFINED=$undefined and GOLDEN_RELOCS=$relocs (once a person has checked the new kext, INGREDIENTS.md), refresh tests/lib/objc-measure.tsv, then write $V to tests/lib/goldens-upstream"
+fi
 if "$DDP/bin/drydock-macho-rewrite" "$B" "$T/again" < "$REPO_ROOT/kext/macfuse.drydock" > "$T/again.log" 2>&1; then
   fail "a second run of kext/macfuse.drydock on the retargeted kext passed; it must match nothing and fail"
 fi

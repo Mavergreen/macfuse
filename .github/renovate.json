@@ -23,15 +23,6 @@
     },
     {
       "customType": "regex",
-      "description": "The Recaulk pin: a Mavergreen/recaulk release tag, bare, whose upstream version is a date, YYYYMMDD.N.",
-      "managerFilePatterns": ["/^components/recaulk/version$/"],
-      "matchStrings": ["^(?<currentValue>\\S+)\\s*$"],
-      "depNameTemplate": "Mavergreen/recaulk",
-      "datasourceTemplate": "github-releases",
-      "versioningTemplate": "regex:^(?<major>\\d{8})\\.(?<minor>\\d+)$"
-    },
-    {
-      "customType": "regex",
       "description": "The Drydock pin: a Mavergreen/drydock release tag (vX.Y.Z), as shipyard's fetch_drydock.sh reads it; build/adapt-helpers.sh rewrites upstream's closed mount_macfuse and load_macfuse with its drydock-macho-rewrite.",
       "managerFilePatterns": ["/^components/drydock/version$/"],
       "matchStrings": ["^(?<currentValue>\\S+)\\s*$"],
@@ -40,6 +31,13 @@
     }
   ],
   "packageRules": [
+    {
+      "description": "An upstream macFUSE bump needs a person, so it never automerges. The kext's golden sha256 and its undefined-symbol and relocation counts (tests/retarget-kext-test.sh) and the strict guard's exact finding counts (tests/lib/objc-measure.tsv) were measured for the one upstream release tests/lib/goldens-upstream names. A new upstream fails them, saying 'refresh for upstream X.Y.Z', until a person checks the new kext and measurements and refreshes them.",
+      "matchDepNames": ["macfuse/macfuse"],
+      "automerge": false,
+      "addLabels": ["needs-a-person"],
+      "prBodyNotes": ["**This bump needs a person.** The build fails at the strict compat guard and tests/retarget-kext-test.sh until the goldens are refreshed for the new upstream; each failure prints what it measured. Check the new kext: its undefined symbols are 10.9's five KPIs plus Recaulk's back-fill, and `_vnop_rename_desc` relocations replace every `_vnop_renamex_desc`. Then, on this branch, set `GOLDEN`, `GOLDEN_UNDEFINED` and `GOLDEN_RELOCS` in tests/retarget-kext-test.sh and each binary's rows in tests/lib/objc-measure.tsv to the printed values, write the new version to tests/lib/goldens-upstream, and commit. INGREDIENTS.md says the same."]
+    },
     {
       "description": "Renovate moves components/drydock/version but cannot write the Linux archive's digest beside it, so a Linux build fails at the fetch until components/drydock/linux-sha256 names the new release's archive.",
       "matchDepNames": ["Mavergreen/drydock"],
