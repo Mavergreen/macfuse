@@ -14,4 +14,4 @@ No upstream release notes beyond the link: `build/upstream-release-notes-url.sh`
 
 ## Conformance deviations
 
-None.
+- native-build:closed-helpers: a native 10.9 build cannot read the upstream dmg (APFS), so it lacks the closed helpers that ship only in the dmg. Exit: shipyard QUEUE "A dmg/APFS reader that runs on 10.9 and Linux".
