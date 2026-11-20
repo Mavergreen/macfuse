@@ -1,0 +1,180 @@
+name: on-mavericks
+
+# spec: 2026-11-19-macfuse-product/task-11-brief.md -- the 10.9 acceptance job: the run's pkg installed on real Mac OS X 10.9.5
+#       guests (Mavergreen/mavericks-vm), one fresh guest per scenario: A installs Recaulk and the pkg on a clean guest and runs
+#       tests/smoke-mavericks.sh; B installs the previous published release, mounts, and upgrades to the run's pkg
+#       (tests/vm/upgrade-scenario.sh); C installs pinned upstream macFUSE 4.0.5 and an sshfs, builds a binary against 4.0.5,
+#       takes it over (tests/vm/takeover-scenario.sh) and runs the smoke with that binary; A then runs decision D's alert
+#       path (tests/vm/alert-path.sh), which moves kexts aside and so runs only on a disposable guest. Any panic, hang or
+#       skip (77) fails. A product release.yml is to call it, with publish needing it; this repo has none yet.
+# spec: 2026-11-19-macfuse-product/task-11-report.md (controller ruling, 2026-11-20) -- the RecaulkKPI.kext the kext links
+#       comes from the pinned Recaulk release's pkg, so this job fails until a Recaulk release ships it (20261120.2 does not)
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: The run's version, 5.5.0-mavericks.N
+        type: string
+        required: true
+      artifact:
+        description: The run's dist artifact, holding macfuse-<version>.pkg
+        type: string
+        required: true
+      examples:
+        description: The run's examples artifact, holding hello2, hello3, passthrough3 and framework-fs (build-libfuse.sh and build-framework.sh EXAMPLES)
+        type: string
+        required: true
+    secrets:
+      MAVERICKS_VM_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  scenario-a:
+    name: A, a fresh install on Mac OS X 10.9 (mavericks-vm)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with: { persist-credentials: false }
+      - uses: Mavergreen/shipyard/.github/actions/install@v1
+      - uses: actions/download-artifact@v8
+        with: { name: "${{ inputs.artifact }}", path: dist }
+      - uses: actions/download-artifact@v8
+        with: { name: "${{ inputs.examples }}", path: bin }
+      - name: The pinned Recaulk, and shipyard's scripts for the guest
+        run: |
+          set -eu
+          rc="$(tr -d '[:space:]' < components/recaulk/version)"
+          sh "$SHIPYARD_SCRIPTS/fetch-release-pkg.sh" recaulk "$rc" "recaulk-$rc.pkg" deps
+          cp -R "$SHIPYARD_SCRIPTS" .shipyard-scripts
+      - uses: Mavergreen/mavericks-vm@v1
+        env:
+          MACFUSE_VERSION: ${{ inputs.version }}
+        with:
+          image-key: ${{ secrets.MAVERICKS_VM_KEY }}
+          copyback: false
+          debug-on-error: true
+          envs: 'MACFUSE_VERSION SHIPYARD_VERSION'
+          run: |
+            sw_vers
+            sudo -n true || { echo "the guest's user cannot sudo without a password, and installer needs root"; exit 1; }
+            export SHIPYARD_SCRIPTS="$PWD/.shipyard-scripts"
+            chmod 755 bin/*
+            sudo installer -pkg deps/recaulk-*.pkg -target /
+            [ -f /Library/Extensions/RecaulkKPI.kext/Contents/Info.plist ] || { echo "the Recaulk release does not ship RecaulkKPI.kext, which the kext links"; exit 1; }
+            sudo installer -pkg "dist/macfuse-$MACFUSE_VERSION.pkg" -target /
+            sh tests/vm/build-tests.sh probe-fs bin /
+            status=0; SMOKE_OLD_ABI=0 sh tests/smoke-mavericks.sh "$MACFUSE_VERSION" bin || status=$?
+            [ "$status" -eq 0 ] || { echo "tests/smoke-mavericks.sh exited $status (77 is a skip, a failure here)"; exit 1; }
+            status=0; MACFUSE_ALERT_PATH=1 sh tests/vm/alert-path.sh bin || status=$?
+            [ "$status" -eq 0 ] || { echo "tests/vm/alert-path.sh exited $status (77 is a skip, a failure here)"; exit 1; }
+
+  scenario-b:
+    name: B, an upgrade from the previous release on Mac OS X 10.9 (mavericks-vm)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0, persist-credentials: false }
+      - uses: Mavergreen/shipyard/.github/actions/install@v1
+      - uses: actions/download-artifact@v8
+        with: { name: "${{ inputs.artifact }}", path: dist }
+      - uses: actions/download-artifact@v8
+        with: { name: "${{ inputs.examples }}", path: bin }
+      # spec: shipyard scripts/previous-release-tag.sh -- the family's "previous release" is the newest <upstream>-mavericks.N tag
+      #       other than this run's; until the first release exists there is nothing to upgrade from, and the step says so
+      - name: The previous published release, the pinned Recaulk, and shipyard's scripts for the guest
+        id: prev
+        env:
+          MACFUSE_VERSION: ${{ inputs.version }}
+        run: |
+          set -eu
+          prev="$(sh "$SHIPYARD_SCRIPTS/previous-release-tag.sh" "$MACFUSE_VERSION")"
+          if [ -z "$prev" ]; then
+            echo "::notice::Scenario B skipped: no earlier macFUSE for Mavericks release is published to upgrade from"
+            echo "prev=" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          sh "$SHIPYARD_SCRIPTS/fetch-release-pkg.sh" macfuse "$prev" "macfuse-$prev.pkg" prev
+          rc="$(tr -d '[:space:]' < components/recaulk/version)"
+          sh "$SHIPYARD_SCRIPTS/fetch-release-pkg.sh" recaulk "$rc" "recaulk-$rc.pkg" deps
+          cp -R "$SHIPYARD_SCRIPTS" .shipyard-scripts
+          echo "prev=$prev" >> "$GITHUB_OUTPUT"
+      - if: steps.prev.outputs.prev != ''
+        uses: Mavergreen/mavericks-vm@v1
+        env:
+          MACFUSE_VERSION: ${{ inputs.version }}
+          MACFUSE_PREV: ${{ steps.prev.outputs.prev }}
+        with:
+          image-key: ${{ secrets.MAVERICKS_VM_KEY }}
+          copyback: false
+          debug-on-error: true
+          envs: 'MACFUSE_VERSION MACFUSE_PREV'
+          run: |
+            sw_vers
+            sudo -n true || { echo "the guest's user cannot sudo without a password, and installer needs root"; exit 1; }
+            chmod 755 bin/*
+            sudo installer -pkg deps/recaulk-*.pkg -target /
+            [ -f /Library/Extensions/RecaulkKPI.kext/Contents/Info.plist ] || { echo "the Recaulk release does not ship RecaulkKPI.kext, which the kext links"; exit 1; }
+            status=0; sh tests/vm/upgrade-scenario.sh "prev/macfuse-$MACFUSE_PREV.pkg" "dist/macfuse-$MACFUSE_VERSION.pkg" "$MACFUSE_VERSION" bin || status=$?
+            [ "$status" -eq 0 ] || { echo "tests/vm/upgrade-scenario.sh exited $status (77 is a skip, a failure here)"; exit 1; }
+
+  scenario-c:
+    name: C, taking over upstream macFUSE 4.0.5 and its sshfs on Mac OS X 10.9 (mavericks-vm)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with: { persist-credentials: false }
+      - uses: Mavergreen/shipyard/.github/actions/install@v1
+      - uses: actions/download-artifact@v8
+        with: { name: "${{ inputs.artifact }}", path: dist }
+      - uses: actions/download-artifact@v8
+        with: { name: "${{ inputs.examples }}", path: bin }
+      # spec: INGREDIENTS.md "macFUSE 4.0.5 and SSHFS 2.5.0" -- CI-only inputs, each a URL and its SHA-256 in components/<name>/pin
+      - name: Upstream macFUSE 4.0.5, osxfuse's SSHFS 2.5.0, the pinned Recaulk, and shipyard's scripts for the guest
+        run: |
+          set -eu
+          . "$SHIPYARD_SCRIPTS/mavericks_fetch.sh"
+          for c in upstream-405 sshfs-250; do
+            read -r url sha < "components/$c/pin"
+            shipyard_fetch_verified "$url" "$sha" deps "${url##*/}"
+          done
+          rc="$(tr -d '[:space:]' < components/recaulk/version)"
+          sh "$SHIPYARD_SCRIPTS/fetch-release-pkg.sh" recaulk "$rc" "recaulk-$rc.pkg" deps
+          cp -R "$SHIPYARD_SCRIPTS" .shipyard-scripts
+      - uses: Mavergreen/mavericks-vm@v1
+        env:
+          MACFUSE_VERSION: ${{ inputs.version }}
+        with:
+          image-key: ${{ secrets.MAVERICKS_VM_KEY }}
+          copyback: false
+          debug-on-error: true
+          envs: 'MACFUSE_VERSION SHIPYARD_VERSION'
+          run: |
+            sw_vers
+            sudo -n true || { echo "the guest's user cannot sudo without a password, and installer needs root"; exit 1; }
+            export SHIPYARD_SCRIPTS="$PWD/.shipyard-scripts"
+            chmod 755 bin/*
+            hdiutil attach -nobrowse -readonly -mountpoint /private/tmp/macfuse-405 deps/macfuse-4.0.5.dmg
+            set -- /private/tmp/macfuse-405/*.pkg
+            sudo installer -pkg "$1" -target /
+            hdiutil detach /private/tmp/macfuse-405
+            sudo installer -pkg deps/sshfs-2.5.0.pkg -target /
+            sh tests/vm/build-tests.sh old-abi bin /
+            status=0; sh tests/vm/takeover-scenario.sh "$MACFUSE_VERSION" "dist/macfuse-$MACFUSE_VERSION.pkg" deps/recaulk-*.pkg || status=$?
+            [ "$status" -eq 0 ] || { echo "tests/vm/takeover-scenario.sh exited $status (77 is a skip, a failure here)"; exit 1; }
+            sh tests/vm/build-tests.sh probe-fs bin /
+            status=0; SMOKE_OLD_ABI=1 sh tests/smoke-mavericks.sh "$MACFUSE_VERSION" bin || status=$?
+            [ "$status" -eq 0 ] || { echo "tests/smoke-mavericks.sh exited $status (77 is a skip, a failure here)"; exit 1; }
