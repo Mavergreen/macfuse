@@ -1,6 +1,7 @@
 # platform: host-agnostic
-# spec: 2026-11-18-macfuse-design.md decision F -- sourced by every build script; the ONE place the (interim) install
-#       prefixes are spelled: every path a setuid helper loads derives from MACFUSE_PREFIX or RECAULK_PREFIX
+# spec: maintainer, 2026-11-19 (interim prefix until shipyard's P4 moves the family off /usr/local) -- sourced by every build
+#       script; the ONE place the install prefixes are spelled: every path a setuid helper loads derives from MACFUSE_PREFIX
+#       or RECAULK_PREFIX, so the P4 move is a change here alone
 if [ -z "${REPO_ROOT:-}" ]; then
   [ -f ./build/lib.sh ] || { echo "lib.sh: set REPO_ROOT, or source from the repo root" >&2; return 1 2>/dev/null || exit 1; }
   REPO_ROOT="$(pwd)"
@@ -8,11 +9,12 @@ fi
 MACFUSE_PREFIX="${MACFUSE_PREFIX:-/usr/local/mavergreen/macfuse}"
 RECAULK_PREFIX="${RECAULK_PREFIX:-/usr/local/mavergreen/recaulk}"
 export REPO_ROOT MACFUSE_PREFIX RECAULK_PREFIX
-# spec: 2026-11-18-macfuse-design.md decision C -- the two dylibs the adapted mount_macfuse loads, at real tree paths (never through a link)
+# spec: build/adapt-helpers.sh -- the two dylibs the setuid mount_macfuse loads, at real tree paths, never through a link a
+#       non-root user could repoint
 MACFUSE_OSRELEASE_SHIM="$MACFUSE_PREFIX/lib/libmfosrelease.dylib"
 RECAULK_SYSTEM_DYLIB="$RECAULK_PREFIX/lib/libRecaulkSystem.dylib"
 export MACFUSE_OSRELEASE_SHIM RECAULK_SYSTEM_DYLIB
-# spec: 2026-11-19-macfuse-product/global-constraints.md "Upstream's paths" -- one line per path third-party FUSE binaries and builds
+# spec: README.md "Install" -- one line per path third-party FUSE binaries and builds
 #       have built in: the path (relative to the volume) and the tree path under MACFUSE_PREFIX its symlink names (build/stage.sh);
 #       the last three are upstream 4.0.5's osxfuse compatibility names, which its core receipt installs and the takeover removes
 MACFUSE_LINKS="Library/Filesystems/macfuse.fs fs
@@ -30,14 +32,14 @@ usr/local/include/fuse3 include/fuse3
 Library/Frameworks/OSXFUSE.framework Frameworks/OSXFUSE.framework
 usr/local/lib/libosxfuse.2.dylib lib/libfuse.2.dylib
 usr/local/lib/libosxfuse_i64.2.dylib lib/libfuse.2.dylib"
-# spec: 2026-11-18-macfuse-design.md "Takeover" (maintainer, 2026-11-20: ship the osxfuse compatibility links) -- links
+# spec: maintainer, 2026-11-20 (ship the osxfuse compatibility links) -- links
 #       build/stage.sh makes inside the tree, as tree path and relative target, for those names: upstream 4.0.5's
 #       OSXFUSE.framework held only Versions/A/OSXFUSE, a link to macFUSE.framework's binary; Resources, macFUSE.framework's,
 #       gives the bundle the identity artifact conformance reads (io.macfuse.frameworks.macfuse, a declared deviation)
 MACFUSE_TREE_LINKS="Frameworks/OSXFUSE.framework/Versions/A/OSXFUSE ../../../macFUSE.framework/Versions/A/macFUSE
 Frameworks/OSXFUSE.framework/Resources ../macFUSE.framework/Resources"
 
-# spec: 2026-11-19-macfuse-product/task-10-brief.md -- "macfuse_preinstall_hook OUT" writes the --preinstall-hook that
+# spec: tests/takeover-test.sh -- "macfuse_preinstall_hook OUT" writes the --preinstall-hook that
 #       build/package.sh hands stage_product.sh: MACFUSE_PREFIX and MACFUSE_LINKS as above, packaging/lib-fuse-mounts.sh,
 #       then packaging/preinstall-hook.sh, so the pkg's preinstall carries everything the takeover reads
 macfuse_preinstall_hook() {
@@ -49,7 +51,7 @@ macfuse_preinstall_hook() {
   } > "$1"
 }
 
-# spec: 2026-11-19-macfuse-product/global-constraints.md -- UPSTREAM_VERSION holds the bare upstream version (5.5.0); it is read from the file, never spelled here
+# spec: INGREDIENTS.md "Declared state" -- UPSTREAM_VERSION holds the bare upstream version; it is read from the file, never spelled here
 upstream_version() { tr -d '[:space:]' < "$REPO_ROOT/UPSTREAM_VERSION"; echo; }
 
 # spec: build/fetch-sources.sh and scripts/pin-sources.sh both read this table of the pinned upstream sources (KEY,
@@ -76,7 +78,7 @@ macfuse_toolchain() {
   unset _mt_rc
 }
 
-# spec: 2026-11-19-macfuse-product/task-8-brief.md Step 4 -- Info.plist is read with POSIX awk, never PlistBuddy or plutil (a Linux build has
+# spec: tests/retarget-kext-test.sh -- Info.plist is read with POSIX awk, never PlistBuddy or plutil (a Linux build has
 #       neither): "plist_string FILE KEY" prints the <string> value of KEY in the top-level dict of an Xcode-style XML plist (one
 #       element per line), and fails when KEY is absent there or its value is not a one-line <string>
 plist_string() {

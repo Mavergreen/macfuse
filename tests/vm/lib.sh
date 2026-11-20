@@ -1,6 +1,7 @@
 # platform: macOS-only -- sourced by the 10.9 acceptance job's guest scripts (tests/smoke-mavericks.sh, tests/vm/*.sh)
-# spec: 2026-11-19-macfuse-product/task-11-brief.md -- 10.9 has no timeout(1), so every wait here is a bounded poll and every
-#       command that might hang runs in the background under a kill -0 watchdog. Definitions only.
+# platform: 10.9 has no timeout(1)
+# spec: tests/vm-lib-test.sh -- so every wait here is a bounded poll and every command that might hang runs in the
+#       background under a kill -0 watchdog. Definitions only.
 #   fail MSG...                  prints FAIL and the job's logs (SMOKE_LOGS), exits 1 (and so runs the cleanup below)
 #   ok MSG...                    prints ok
 #   is_mounted MP                MP (an absolute, symlink-free path) is in the mount table
@@ -23,12 +24,12 @@
 . "${REPO_ROOT:?tests/vm/lib.sh: set REPO_ROOT to the repo root}/build/lib.sh"
 SMOKE_LOGS="${SMOKE_LOGS:-/private/tmp/macfuse-smoke/logs}"
 FUSE_KEXTS="io.macfuse.filesystems.macfuse.21 dev.mavergreen.recaulk.kpi"
-# spec: task-11-report.md "Fix round 1" (6) -- upstream libfuse's helper.c atfork handler prints this when the process is
+# spec: README.md "Coming from macFUSE 4" -- upstream libfuse's helper.c atfork handler prints this when the process is
 #       threaded at fork(2); the only fork is fuse_darwin_mount's double fork to exec mount_macfuse, made from a loop
 #       worker in the multithreaded loop: once per mount with the default loop, never with -s
 FORK_WARNING="fuse: forking a threaded process is unsafe, the child may crash or deadlock"
 CLEAN_MPS=""; CLEAN_PIDS=""; KEXTS_BEFORE=""
-# spec: task-11-rereview-1.md Important 1 -- fd 8 is the script's own stderr, saved when this file is sourced: fail and the
+# spec: tests/vm-lib-test.sh (1) -- fd 8 is the script's own stderr, saved when this file is sourced: fail and the
 #       cleanup write there, so a failure inside a redirected must (a command's output sent to a log or /dev/null) still
 #       shows its reason on the job's console
 exec 8>&2
@@ -109,8 +110,8 @@ cleanup_on_exit() {
   trap 'exit 129' HUP
 }
 _unmount_tracked() {
-  # spec: task-11-rereview-1.md Important 4 -- each fallback only while MP is still a mount point: given a path that is
-  #       not one, diskutil would aim at the volume that holds it
+  # platform: each fallback only while MP is still a mount point: given a path that is not one, diskutil would aim at the
+  #           volume that holds it
   for _m in $CLEAN_MPS; do
     is_mounted "$_m" || continue
     bounded 30 umount "$_m" > /dev/null 2>&1
@@ -122,7 +123,7 @@ _unmount_tracked() {
 }
 _cleanup() {
   _crc=$?
-  # spec: task-11-rereview-1.md Important 3 -- a second signal must not cut the cleanup short (alert-path's put_back)
+  # spec: tests/vm-lib-test.sh (2) -- a second signal must not cut the cleanup short (alert-path's put_back)
   trap '' INT TERM HUP
   trap - EXIT
   _cleanup_body >&8 2>&8
@@ -147,7 +148,7 @@ _cleanup_body() {
   fi
 }
 safe_rm() {
-  # spec: task-11-rereview-1.md Important 5 -- never through a link to its target
+  # spec: tests/vm-lib-test.sh (3) -- never through a link to its target
   [ ! -h "$1" ] || fail "safe_rm: refusing $1: it is a symbolic link"
   [ -e "$1" ] || return 0
   [ -d "$1" ] || fail "safe_rm: refusing $1: not a directory"

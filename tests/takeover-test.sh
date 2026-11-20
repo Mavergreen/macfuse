@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: macOS-only -- the generated preinstall's own part reads manifests with /usr/libexec/PlistBuddy
-# spec: 2026-11-19-macfuse-product/task-10-brief.md Step 1 -- the takeover and its uninstall hook, against a fake volume and
+# spec: packaging/preinstall-hook.sh -- the takeover and its uninstall hook, against a fake volume and
 #       stubs for pkgutil, mount, kextstat, kextunload, launchctl and sw_vers on PATH. The preinstall stage_product.sh generates
 #       with build/package.sh's hook runs on a fake volume (never the boot volume); the boot-volume steps run the same hook,
 #       with its OS version and file steps answered by the test, under stubs that change nothing (rm and rmdir included). Upstream
@@ -210,7 +210,7 @@ if called launchctl; then fail "with ROOT=$V, the takeover called launchctl"; fi
 if called mount; then fail "with ROOT=$V, the takeover read the boot volume's mounts"; fi
 [ ! -e "$V$MACFUSE_PREFIX" ] || fail "the generated preinstall did not remove the tree after the hook"
 
-# spec: 2026-11-18-macfuse-design.md "Takeover" step 4 -- a pkgutil that fails, or lists only part of a receipt, stops the
+# spec: packaging/lib-fuse-mounts.sh remove_upstream_receipts -- a pkgutil that fails, or lists only part of a receipt, stops the
 #       takeover before anything is removed or forgotten
 for flag in pkgutil-fail-files pkgutil-fail-info; do
   mkvol "$V" 10.9.5
@@ -219,7 +219,7 @@ for flag in pkgutil-fail-files pkgutil-fail-info; do
   refuses "$flag" "cannot read upstream macFUSE's receipts"
 done
 
-# spec: 2026-11-18-macfuse-design.md "Collisions" -- a directory the takeover could not remove where a link goes stops it before the receipts are forgotten
+# spec: packaging/lib-fuse-mounts.sh remove_upstream_receipts -- a directory the takeover could not remove where a link goes stops it before the receipts are forgotten
 mkvol "$V" 10.9.5
 receipt "$V" "$CORE" "$REPO_ROOT/tests/takeover/core-4.0.5.types"
 mkdir -p "$T/normdir"; printf '#!/bin/sh\n' > "$T/normdir/rmdir"; chmod 755 "$T/normdir/rmdir"
@@ -228,7 +228,7 @@ rc=0; PATH="$T/normdir:$T/bin:$PATH" sh "$T/scripts/preinstall" "$T/x.pkg" "$V" 
 grep -qxF "  /usr/local/include/fuse" "$T/out" || { cat "$T/out" >&2; fail "the takeover does not name the directory it could not clear"; }
 [ -f "$T/receipts/$CORE.types" ] || fail "the takeover forgot the core receipt although it could not clear a link's path"
 
-# spec: task-10-brief.md "Order" steps 2 and 4 on the boot volume -- the hook as composed, with ROOT empty and its OS version
+# spec: packaging/preinstall-hook.sh -- the mount refusal and the kext unload on the boot volume: the hook as composed, with ROOT empty and its OS version
 #       answered by the test and every step that reads or writes the volume (tested above, on the fake volume) recorded
 #       instead of run, so nothing here reaches this Mac's files; rm, rmdir, pkgutil, kextunload and launchctl are stubs as
 #       well, and the call log must show no rm, rmdir or launchctl
@@ -271,7 +271,7 @@ grep -qF "cannot unload $KEXT_ID" "$T/out" || fail "a failed kextunload is not r
 if called remove_upstream_receipts; then fail "a failed kextunload still went on to remove upstream's files"; fi
 if grep -q '^sw_vers' "$T/calls"; then fail "the takeover asked sw_vers, which describes the running system, not the target"; fi
 
-# spec: 2026-11-18-macfuse-design.md "Updates while volumes are mounted" -- pre-uninstall, as installed beside its library
+# spec: packaging/pre-uninstall -- as installed beside its library
 mkdir -p "$T/tree/libexec/mavergreen"
 cp "$REPO_ROOT/packaging/pre-uninstall" "$REPO_ROOT/packaging/lib-fuse-mounts.sh" "$T/tree/libexec/mavergreen/"
 pu() { rc=0; PATH="$T/bin:$PATH" "$T/tree/libexec/mavergreen/pre-uninstall" > "$T/out" 2>&1 || rc=$?; }

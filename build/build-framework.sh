@@ -1,7 +1,8 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: 2026-11-18-macfuse-design.md decision A -- macFUSE.framework is built from upstream's Objective-C only. What upstream's
-#       Framework.xcodeproj and its 5.5.0 binary say (Step 1 of the Task 6 brief):
+# spec: maintainer, 2026-11-19 (README.md "macFUSE.framework is Objective-C only") -- macFUSE.framework is built from
+#       upstream's Objective-C only, since the family's Swift lacks the Foundation overlay. What upstream's
+#       Framework.xcodeproj and its 5.5.0 binary say:
 #   - Swift: Framework/Extensions/Foundation/NSFileManager.swift is the only Swift file. It extends
 #     FileAttributeKey with 16 @_alwaysEmitIntoClient properties, so upstream's binary exports for it only
 #     their 16 property descriptors (_$sSo18NSFileAttributeKeya7macFUSEE...MV) and links 8 /usr/lib/swift
@@ -36,7 +37,7 @@ STAGE=$2
 EX=$3
 FS="$SRC/framework/Framework"
 [ -f "$FS/GMUserFileSystem.m" ] && [ -f "$FS/macFUSE.h" ] || { echo "build-framework: no upstream Framework sources under $SRC/framework" >&2; exit 1; }
-# spec: 2026-11-18-macfuse-design.md decision A assumed one Swift file; another means the ObjC-only framework may drop more than FileAttributeKey
+# spec: README.md "macFUSE.framework is Objective-C only" -- it drops one Swift file; another would drop more than FileAttributeKey
 swift="$(cd "$SRC/framework" && find . -name '*.swift' | LC_ALL=C sort)"
 [ "$swift" = ./Framework/Extensions/Foundation/NSFileManager.swift ] || { echo "build-framework: upstream's Swift is not just NSFileManager.swift: $swift" >&2; exit 1; }
 TREE="$STAGE$MACFUSE_PREFIX"
@@ -106,7 +107,7 @@ ln -s Versions/Current/macFUSE "$OUT/macFUSE"
 sed -e "s|@VERSION@|$(upstream_version)|" -e 's|@MINIMUM_SYSTEM_VERSION@|10.9|' \
   "$REPO_ROOT/framework/Info.plist.in" > "$OUT/Versions/A/Resources/Info.plist"
 
-# spec: 2026-11-19-macfuse-product task-6-brief.md -- a third-party file system built against the staged framework; upstream's headers need the prelude
+# spec: tests/framework-exports-test.sh -- a third-party file system built against the staged framework; upstream's headers need the prelude
 #       and the copies above on the 10.9 SDK, as they need a 10.12 SDK or later elsewhere
 # shellcheck disable=SC2086
 "$CC" $BASE -x objective-c $MODS -Wno-atimport-in-framework-header -O2 -g -Wall -F"$CS" \

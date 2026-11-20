@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: 2026-11-18-macfuse-design.md decisions C and D -- the rendered mount_macfuse recipe is exactly the spike's five statements, and the
+# spec: build/adapt-helpers.sh -- the rendered mount_macfuse recipe is exactly its five statements, and the
 #       load_macfuse recipe its two, with the shim's and libRecaulkSystem's paths taken from build/lib.sh; no recipe
 #       loads anything through /Library/Filesystems. After build/adapt-helpers.sh, mount_macfuse binds _sysctlbyname
 #       to the shim and ____chkstk_darwin and _malloc_type_malloc to libRecaulkSystem; both helpers are thin x86_64,
@@ -57,7 +57,7 @@ fi
 SHIM="$MACFUSE_PREFIX/lib/libmfosrelease.dylib"
 RSYS="$RECAULK_PREFIX/lib/libRecaulkSystem.dylib"
 macfuse_toolchain helpers-recipe-test || { echo "FAIL: no toolchain" >&2; exit 1; }
-# spec: 2026-11-18-macfuse-design.md decision C -- the libRecaulkSystem.dylib the recipe names is the pinned Recaulk's, and it provides ____chkstk_darwin
+# spec: components/recaulk/version -- the libRecaulkSystem.dylib the recipe names is the pinned Recaulk's, and it provides ____chkstk_darwin
 [ "$("$CL/bin/llvm-otool" -D "$RC/lib/libRecaulkSystem.dylib" | sed 1d)" = "$RSYS" ] || fail "the pinned Recaulk's libRecaulkSystem.dylib is not installed at $RSYS"
 "$CL/bin/llvm-nm" -gUj "$RC/lib/libRecaulkSystem.dylib" | grep -qx ____chkstk_darwin || fail "the pinned Recaulk's libRecaulkSystem.dylib lacks ____chkstk_darwin"
 DDP="$(sh "$SHIPYARD_SCRIPTS/fetch_drydock.sh" "$REPO_ROOT/components/drydock")" || { echo "FAIL: no Drydock" >&2; exit 1; }
@@ -65,7 +65,7 @@ DD="$DDP/bin/drydock-macho-rewrite"
 [ -x "$DD" ] || { echo "FAIL: $DDP has no bin/drydock-macho-rewrite" >&2; exit 1; }
 
 OUT="$T/stage$MACFUSE_PREFIX/fs/Contents/Resources"
-# spec: 2026-11-19-macfuse-product/task-7-brief.md (task 4 review Minor 1) -- a build script replaces only its own outputs in the shared STAGE tree
+# spec: build/adapt-helpers.sh -- a build script replaces only its own outputs in the shared STAGE tree
 mkdir -p "$OUT"
 echo foreign > "$OUT/foreign.txt"
 echo stale > "$OUT/mount_macfuse"

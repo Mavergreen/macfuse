@@ -1,6 +1,6 @@
 # platform: macOS-only -- calls Darwin syscalls through ctypes on a mounted FUSE volume, with 10.9's own python 2.7
-# spec: 2026-11-18-macfuse-design.md "Proof" -- volname= must take effect: prints the volume name getattrlist(2)
-#       (ATTR_VOL_NAME) reports for a mount point. From the spike's .superpowers/spike/t6/volname.py. Python 2.7 (10.9's own).
+# spec: tests/smoke-mavericks.sh -- volname= must take effect: prints the volume name getattrlist(2)
+#       (ATTR_VOL_NAME) reports for a mount point. Python 2.7 (10.9's own).
 # usage: python volname.py MOUNTPOINT
 import ctypes, ctypes.util, struct, sys
 libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)

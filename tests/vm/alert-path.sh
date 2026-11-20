@@ -1,6 +1,7 @@
 #!/bin/sh
 # platform: macOS-only -- moves kexts aside and mounts on a Mac OS X 10.9 guest (the acceptance job's Scenario A, CI only)
-# spec: 2026-11-18-macfuse-design.md decision D and task-11-report.md "Fix round 1" (4) -- the adapted mount_macfuse's
+# spec: INGREDIENTS.md "Conformance deviations" sdk-pin (the closed helper records SDK 27.0, so its CF/AppKit path runs on
+#       10.9 once) -- the adapted mount_macfuse's
 #       CF alert path, reached only when load_macfuse fails: with nothing loaded,
 #       (a) /Library/Extensions/RecaulkKPI.kext moved aside: kextd cannot resolve the kext's dependency, load_macfuse
 #           prints "kext load failed" and exits 255, and mount_macfuse reports "the file system is not available (255)";

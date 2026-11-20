@@ -1,6 +1,7 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: 2026-11-18-macfuse-design.md decisions C and D -- adapts upstream's closed mount_macfuse and load_macfuse for 10.9 with Drydock
+# spec: maintainer, 2026-11-19 (an osrelease shim, not a byte patch; the closed helpers' SDK 27.0 a declared sdk-pin deviation,
+#       INGREDIENTS.md) -- adapts upstream's closed mount_macfuse and load_macfuse for 10.9 with Drydock
 #       (components/drydock/version, fetched by shipyard's fetch_drydock.sh): the x86_64 slice only, then the recipe
 #       helpers/<helper>.drydock.in with @SHIM@ -> $MACFUSE_OSRELEASE_SHIM and @RECAULK_SYSTEM@ -> $RECAULK_SYSTEM_DYLIB
 #       (build/lib.sh), so each loads only real tree paths. Rewrites the binaries and never executes them.

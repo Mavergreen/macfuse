@@ -1,8 +1,7 @@
 #!/bin/sh
 # platform: macOS-only -- runs 10.9's own mv, xattr and python 2.7 against a mounted FUSE volume in the acceptance job
-# spec: 2026-11-19-macfuse-product/task-11-brief.md Scenario A -- the passthrough3 ops: write, read, rename, rename over an
-#       existing file and an existing (empty) directory, xattr set/get/remove, mkdir/rmdir, unlink. Grown from the spike's
-#       .superpowers/spike/t5b/ops.sh, which printed results to diff; this one asserts each and stops at the first failure.
+# spec: tests/smoke-mavericks.sh -- the passthrough3 ops: write, read, rename, rename over an existing file and an existing
+#       (empty) directory, xattr set/get/remove, mkdir/rmdir, unlink. Each is asserted, and the first failure stops it.
 #   usage: ops.sh DIR    (DIR is a directory on the volume under test, empty or not; ops.sh works in DIR/ops.$$)
 set -u
 [ $# -eq 1 ] && [ -d "$1" ] || { echo "usage: ops.sh DIR" >&2; exit 2; }

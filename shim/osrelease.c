@@ -1,12 +1,12 @@
 /*
  * osrelease.c -- libmfosrelease.dylib, the one-symbol shim that lets macFUSE's
- * closed mount_macfuse past its Darwin >= 21 gate on Mac OS X 10.9 (design
- * decision C).
+ * closed mount_macfuse past its Darwin >= 21 gate on Mac OS X 10.9 (chosen
+ * over a byte patch, which would be tied to each release's code offsets).
  *
  * mount_macfuse's main() calls sysctlbyname("kern.osrelease"), takes strtol()
  * of the part before the first '.', and refuses (errx 69, error 22) when that
  * is below 21 (macOS 12). The value is used for nothing else: the register
- * holding it is dead after the compare (spike findings, Task 5a).
+ * holding it is dead after the compare.
  * build/adapt-helpers.sh redirects mount_macfuse's _sysctlbyname import here
  * with Drydock's `import redirect` (helpers/mount_macfuse.drydock.in); every
  * other name is passed through to the kernel, among them the kext's

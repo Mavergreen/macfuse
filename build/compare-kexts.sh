@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: 2026-11-19-macfuse-product/task-8-brief.md Step 5 -- the kext is taken from the debug tbz, so it must be the one the signed dmg
+# spec: tests/compare-kexts-test.sh -- the kext is taken from the debug tbz, so it must be the one the signed dmg
 #       ships: the same sections with the same bytes, and the same x86_64 UUID; only the signature and the symbol table may differ.
 #       Reads with clang22's llvm-lipo and llvm-otool, never executes either kext.
 #   usage: compare-kexts.sh DEBUG_KEXT DMG_KEXT

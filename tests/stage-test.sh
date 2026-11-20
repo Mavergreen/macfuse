@@ -1,10 +1,10 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: 2026-11-19-macfuse-product/task-9-brief.md Step 1 -- build/stage.sh lays out the product tree under $MACFUSE_PREFIX and
-#       links every upstream path in global-constraints.md "Upstream's paths" into it: each is a symlink at its absolute path whose
-#       target, read inside the stage, is the tree file; fs/Contents/Extensions/10/macfuse.kext is a real directory; nothing is
-#       group- or other-writable; and stage_product.sh's manifest lists exactly those links as `outside`. Runs on fixtures, and
-#       also on the real build stage when one exists.
+# spec: build/stage.sh -- it lays out the product tree under $MACFUSE_PREFIX and links every upstream path (UPSTREAM_LINKS
+#       below) into it: each is a symlink at its absolute path whose target, read inside the stage, is the tree file;
+#       fs/Contents/Extensions/10/macfuse.kext is a real directory; nothing is group- or other-writable; and
+#       stage_product.sh's manifest lists exactly those links as `outside`. Runs on fixtures, and also on the real build
+#       stage when one exists.
 set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "$HERE/.." && pwd)}"
@@ -19,8 +19,9 @@ trap 'rm -rf "$T"' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-# spec: 2026-11-19-macfuse-product/global-constraints.md "Upstream's paths" -- each path, and the tree file it must resolve to;
-#       the last three are upstream 4.0.5's osxfuse compatibility names (2026-11-18-macfuse-design.md "Takeover", maintainer 2026-11-20)
+# spec: README.md "Install" -- each path third-party binaries and builds have built in, and the tree file it must resolve to,
+#       kept apart from build/lib.sh's MACFUSE_LINKS so that drift there is caught; the last three are upstream 4.0.5's osxfuse
+#       compatibility names (maintainer, 2026-11-20)
 UPSTREAM_LINKS="Library/Filesystems/macfuse.fs fs
 Library/Frameworks/macFUSE.framework Frameworks/macFUSE.framework
 usr/local/lib/libfuse.2.dylib lib/libfuse.2.dylib
@@ -75,7 +76,7 @@ fixture_kext() {
 }
 mode() { ls -ld "$1" | awk '{ print $1 }' | cut -c1-10; }
 
-# spec: task-9-brief.md Step 1 -- every assertion on one staged OUT; DMG is the dmg root its plists came from
+# spec: build/stage.sh -- every assertion on one staged OUT; DMG is the dmg root its plists came from
 check_stage() {
   out="$1"; dmg="$2"; tree="$out$MACFUSE_PREFIX"
   [ -d "$tree" ] || { fail "$out holds no $MACFUSE_PREFIX"; return; }

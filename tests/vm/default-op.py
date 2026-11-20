@@ -1,8 +1,8 @@
 # platform: macOS-only -- calls Darwin syscalls through ctypes on a mounted FUSE volume, with 10.9's own python 2.7
-# spec: 2026-11-18-macfuse-design.md "The kext" -- two syscalls whose vnode op macFUSE does not implement reach the
+# spec: kext/macfuse.drydock -- two syscalls whose vnode op macFUSE does not implement reach the
 #       vnode-op table's default handler, which must answer ENOTSUP (45), never crash or hang: exchangedata(2)
 #       (VNOP_EXCHANGE) and getdirentriesattr(2) (VNOP_READDIRATTR). getattrlist(2), generic VFS, must succeed.
-#       From the spike's .superpowers/spike/t5b/default-op.py, made to assert. Python 2.7 (10.9's own).
+#       Python 2.7 (10.9's own).
 # usage: python default-op.py FILE_A FILE_B DIR   (all on the FUSE volume under test; exits 1 on any wrong answer)
 import ctypes, ctypes.util, errno, os, sys
 libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)

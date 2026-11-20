@@ -1,7 +1,8 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: design decision A -- the device-channel cases (socketpair standing in for /dev/macfuseN) run only on a
-#       host that executes x86_64 (the 10.9 VM job, Task 11); this Mac, Apple silicon or not Darwin, SKIPs.
+# spec: README.md "MFMount is a C stand-in" -- the device-channel cases (socketpair standing in for /dev/macfuseN) run only
+#       on a host that executes x86_64 (the 10.9 acceptance job, .github/workflows/on-mavericks.yml); this Mac, Apple silicon
+#       or not Darwin, SKIPs.
 set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "$HERE/.." && pwd)}"

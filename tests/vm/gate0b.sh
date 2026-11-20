@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: macOS-only -- mounts passthrough3 and probe-fs on Mac OS X 10.9 (the acceptance job's guest) and measures them
-# spec: 2026-11-19-macfuse-product/task-11-report.md "Gate 0b results (for anylinuxfs)" -- what a libfuse 3 file system
+# spec: tests/smoke-mavericks.sh (asked by anylinuxfs, 2026-11-20) -- what a libfuse 3 file system
 #       built for this product can rely on, asked by anylinuxfs: (1) the default multithreaded loop under 8 parallel
 #       readers and writers for GATE0B_SECS (60) s, with no hang; (2) FUSE_THREAD_STACK=8388608 gives the workers an
 #       8 MiB stack; (3) the negotiated max_write/max_read, and a 64 MiB dd write and read-back with its throughput;
@@ -46,7 +46,7 @@ PT=$DPID
 init="$(grep -E '^ *(max_write|max_read|max_readahead|max_background|congestion_threshold|time_gran)' "$SMOKE_LOGS/gate0b-pt.log" | sed 's/^ *//' | tr '\n' ' ')"
 r "passthrough3 -d INIT reply: ${init:-none found}"
 grep -E 'INIT: |unique: 1,|init' "$SMOKE_LOGS/gate0b-pt.log" | head -n 3 | sed 's/^/gate0b:   /'
-# spec: task-11-report.md "Gate 0b results" (3) -- the reply's max_write is the 1 MiB anylinuxfs was told it can rely on
+# spec: tests/vm/gate0b.sh header (3) -- the reply's max_write is the 1 MiB anylinuxfs was told it can rely on
 grep -q '^ *max_write=0x00100000$' "$SMOKE_LOGS/gate0b-pt.log" || fail "passthrough3's INIT reply does not give max_write=0x00100000 (1 MiB)"
 P="$M$S"
 must 60 "making 64 MiB of random data" dd if=/dev/urandom of="$G/rand64" bs=1048576 count=64 2> /dev/null
@@ -59,7 +59,7 @@ must 60 "the 64 MiB file on the backing directory differs" cmp -s "$G/rand64" "$
 must 60 "rm through passthrough3" rm -f "$P/big"
 rm -f "$G/back64"
 r "64 MiB round trip byte-identical"
-# spec: 2026-11-19-macfuse-product/task-11-report.md "Gate 0b results" (1) -- each worker writes, reads back and compares,
+# spec: tests/vm/gate0b.sh header (1) -- each worker writes, reads back and compares,
 #       renames and unlinks its own files in a loop until the deadline; a worker still running 60 s past it is a hang
 end=$(( $(date +%s) + SECS ))
 i=1
@@ -148,7 +148,7 @@ for opt in none noappledouble; do
   r "[$opt] entries on the volume: $(bounded 30 ls -a "$M" | tr '\n' ' ')"
   ad="$(grep -c ' /\._' "$PROBE_LOG" | tr -d ' ')"
   r "[$opt] AppleDouble names the daemon was asked for: $ad (cumulative)"
-  # spec: task-11-report.md "Gate 0b results" (4) -- a file system with xattr callbacks gets native xattrs, never ._ files
+  # spec: tests/vm/gate0b.sh header (4) -- a file system with xattr callbacks gets native xattrs, never ._ files
   [ "$ad" -eq 0 ] || fail "probe-fs was asked for $ad ._ names ($opt)"
   stop_daemon "$M" "$p" "$SMOKE_LOGS/gate0b-probe-x-$opt.log"
 done

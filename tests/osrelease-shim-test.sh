@@ -1,8 +1,8 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: 2026-11-18-macfuse-design.md decision C -- libmfosrelease.dylib, at $MACFUSE_PREFIX/lib/libmfosrelease.dylib, exports only _sysctlbyname
+# spec: shim/osrelease.c -- libmfosrelease.dylib, at $MACFUSE_PREFIX/lib/libmfosrelease.dylib, exports only _sysctlbyname
 #       and imports only from libSystem, and passes the default and the strict compat guard outright. Its executing half
-#       (the spike's four cases, tests/shim/osrelease-test.c) runs only on a host that executes x86_64 (the 10.9 VM
+#       (four cases, tests/shim/osrelease-test.c) runs only on a host that executes x86_64 (the 10.9 VM
 #       job); on any other host the test SKIPs (77) once the static half has passed.
 set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -19,7 +19,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 INSTALL="$MACFUSE_PREFIX/lib/libmfosrelease.dylib"
-# spec: 2026-11-19-macfuse-product/task-7-brief.md (task 4 review Minor 1) -- a build script replaces only its own outputs in the shared STAGE tree
+# spec: build/build-shim.sh -- a build script replaces only its own outputs in the shared STAGE tree
 mkdir -p "$T/stage$MACFUSE_PREFIX/lib"
 echo foreign > "$T/stage$MACFUSE_PREFIX/lib/foreign.txt"
 sh "$REPO_ROOT/build/build-shim.sh" "$T/stage" > "$T/build.log" 2>&1 || { cat "$T/build.log" >&2; echo "FAIL: build-shim.sh failed" >&2; exit 1; }
@@ -35,7 +35,7 @@ id="$("$CL/bin/llvm-otool" -D "$SHIM" | sed 1d)"
 "$CL/bin/llvm-nm" -gUj "$SHIM" > "$T/exports.txt"
 echo "exports: $(tr '\n' ' ' < "$T/exports.txt")"
 [ "$(cat "$T/exports.txt")" = _sysctlbyname ] || fail "exports more or less than _sysctlbyname"
-# spec: 2026-11-18-macfuse-design.md decision C -- a setuid-root binary loads the shim, so its symbol table is reviewed
+# spec: shim/osrelease.c -- a setuid-root binary loads the shim, so its symbol table is reviewed
 #       whole: it defines only _sysctlbyname (and the linker's own __dyld_private), so no librecaulk.a member is linked in
 #       unreviewed, and it binds only these names, each from libSystem (memcpy of the 7 bytes is inlined)
 "$CL/bin/llvm-nm" -Uj "$SHIM" | LC_ALL=C sort > "$T/defined.txt"

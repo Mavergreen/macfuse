@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: 2026-11-19-macfuse-product/task-8-brief.md Step 2 -- build/compare-kexts.sh on fixtures linked here with clang22: two identical
+# spec: build/compare-kexts.sh -- on fixtures linked here with clang22: two identical
 #       Mach-O files pass, as kext bundles too; one byte changed in __TEXT,__text fails naming that section; a different UUID
 #       (a copy with one LC_UUID byte changed) fails naming the UUID, and only it
 set -eu

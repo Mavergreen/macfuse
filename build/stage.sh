@@ -1,7 +1,7 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: 2026-11-19-macfuse-product/task-9-brief.md and global-constraints.md "Upstream's paths" -- lays out the product tree and
-#       links upstream's paths into it; tests/stage-test.sh holds the contract.
+# spec: tests/stage-test.sh -- lays out the product tree and links upstream's paths (build/lib.sh MACFUSE_LINKS) into it;
+#       the test holds the contract.
 #   usage: stage.sh BUILT DMG_ROOT KEXT OUT
 #          BUILT is the build stage that build/build-mfmount.sh, build-libfuse.sh, build-framework.sh, build-shim.sh and
 #          adapt-helpers.sh write: BUILT/$MACFUSE_PREFIX. DMG_ROOT is upstream's extracted dmg payload (build/extract-dmg.sh),
@@ -82,7 +82,7 @@ find "$N" -name '._*' -exec rm -f {} +
 find "$N" -type d -exec chmod 755 {} +
 find "$N" -type f -perm -100 -exec chmod 755 {} +
 find "$N" -type f ! -perm -100 -exec chmod 644 {} +
-# spec: global-constraints.md "mount_macfuse and load_macfuse: setuid root (root:wheel 4755) as installed" -- stevedore records the
+# spec: tests/package-test.sh -- mount_macfuse and load_macfuse install setuid root (root:wheel 4755); stevedore records the
 #       staged mode and writes every owner as 0/0 (tests/package-test.sh reads both back from the pkg)
 chmod 4755 "$T/fs/Contents/Resources/mount_macfuse" "$T/fs/Contents/Resources/load_macfuse"
 chmod 755 "$T/libexec/mavergreen/pre-uninstall"

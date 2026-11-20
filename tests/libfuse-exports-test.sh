@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: 2026-11-18-macfuse-spike-findings.md "libfuse 2 and 3" -- the 10.9 libfuse 2 and 3 must be drop-in for upstream's: the same exported
+# spec: README.md "Coming from macFUSE 4" -- the 10.9 libfuse 2 and 3 must be drop-in for upstream's: the same exported
 #       names as upstream's x86_64 slices (207 and 225), the same install names and versions, the same headers and
 #       pkg-config files, and only the imports the 10.9 build needs; no Recaulk name leaks out as an export.
 # spec: INGREDIENTS.md "Conformance deviations" objc-measure -- each must pass the default compat guard; the strict one is
@@ -31,7 +31,7 @@ trap 'exit 143' TERM
 macfuse_toolchain libfuse-exports-test || { echo "FAIL: no toolchain" >&2; exit 1; }
 sh "$REPO_ROOT/build/build-mfmount.sh" "$SRC" "$T/stage" > "$T/build.log" 2>&1 || { cat "$T/build.log" >&2; echo "FAIL: build-mfmount.sh failed" >&2; exit 1; }
 OURS="$T/stage$MACFUSE_PREFIX"
-# spec: 2026-11-19-macfuse-product/task-7-brief.md (task 4 review Minor 1) -- build-libfuse.sh shares lib/ with the osrelease shim (build/build-shim.sh), so it
+# spec: build/build-libfuse.sh -- it shares lib/ with the osrelease shim (build/build-shim.sh), so it
 #       replaces only its own files: a foreign file survives, and a stale file inside its own include/fuse/ does not
 mkdir -p "$OURS/lib" "$OURS/include/fuse"
 echo foreign > "$OURS/lib/foreign.txt"
@@ -70,7 +70,7 @@ for spec in "libfuse.2.dylib 207 12.0.0 12.9.0" "libfuse3.4.dylib 225 4.0.0 4.0.
   LC_ALL=C comm -12 "$T/recaulk-names.txt" "$T/ours.txt" > "$T/leaked.txt"
   [ ! -s "$T/leaked.txt" ] || { cat "$T/leaked.txt" >&2; fail "$lib: exports Recaulk names"; }
 
-  # spec: 2026-11-18-macfuse-spike-findings.md "libfuse 2 and 3" adaptations 1-2 (M1) -- libfuse 2's slab allocator stays off (no _mmap/_munmap) and neither names its
+  # spec: libfuse/config/lib2/config.h -- libfuse 2's slab allocator stays off (no _mmap/_munmap) and neither names its
   #       threads; upstream's libfuse 3 does import _mmap/_munmap (outside the slab), so the sets must match upstream's
   "$NM" -uj "$ours" | grep -x -e _mmap -e _munmap -e _pthread_setname_np > "$T/undef.txt" || :
   "$NM" --arch=x86_64 -uj "$UP/lib/$lib" | grep -x -e _mmap -e _munmap -e _pthread_setname_np > "$T/up-undef.txt" || :
@@ -107,7 +107,7 @@ while read -r h; do
   cmp -s "$UP/include/$h" "$OURS/include/$h" || fail "include/$h differs from upstream's"
 done < "$T/up-h.txt"
 
-# spec: 2026-11-18-macfuse-spike-findings.md "libfuse 2 and 3" adaptation 4 -- the only intended differences are the link flags of the 10.9 build
+# spec: build/build-libfuse.sh -- the only intended differences are the link flags of the 10.9 build
 for f in pkgconfig/fuse.pc:Libs.private pkgconfig/fuse3.pc:NONE libfuse.la:dependency_libs; do
   p=${f%%:*}; k=${f#*:}
   [ -f "$OURS/lib/$p" ] || { fail "no lib/$p"; continue; }

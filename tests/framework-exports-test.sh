@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: 2026-11-18-macfuse-design.md decision A -- macFUSE.framework is built from upstream's Objective-C only: it must export exactly the
+# spec: README.md "macFUSE.framework is Objective-C only" -- macFUSE.framework is built from upstream's Objective-C only: it must export exactly the
 #       non-Swift names of upstream's x86_64 slice, at upstream's install name, versions and bundle identity, with
 #       upstream's headers and module map, link libfuse 2 as upstream's does and no /usr/lib/swift library, and pass
 #       the default compat guard; the strict one (build/compat-guard.sh) is recorded and fails only outside the Drydock
@@ -40,7 +40,7 @@ OURS="$FW/Versions/A/macFUSE"
 [ -f "$OURS" ] || { fail "no $OURS"; exit 1; }
 INSTALL=/Library/Frameworks/macFUSE.framework/Versions/A/macFUSE
 
-# spec: build/build-framework.sh Step 1 -- upstream's Swift exports are the property descriptors of NSFileManager.swift's FileAttributeKey extension (_$s...)
+# spec: build/build-framework.sh header -- upstream's Swift exports are the property descriptors of NSFileManager.swift's FileAttributeKey extension (_$s...)
 "$NM" --arch=x86_64 -gUj "$UPFW/Versions/A/macFUSE" | grep -v '^_\$s' | LC_ALL=C sort > "$T/up.txt" || :
 "$NM" -gUj "$OURS" | LC_ALL=C sort > "$T/ours.txt"
 [ "$(wc -l < "$T/up.txt" | tr -d ' ')" -eq 46 ] || fail "upstream exports $(wc -l < "$T/up.txt" | tr -d ' ') non-Swift names, not 46"

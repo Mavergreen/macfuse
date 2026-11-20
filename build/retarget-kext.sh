@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: 2026-11-18-macfuse-design.md "the kext" and global-constraints.md "Kext" -- retargets upstream's KernelExtension-12 kext for
+# spec: tests/retarget-kext-test.sh -- retargets upstream's KernelExtension-12 kext for
 #       10.9 without relinking it: the x86_64 slice only (llvm-lipo), the vnode-op table rewritten by kext/macfuse.drydock
 #       (components/drydock/version, fetched by shipyard's fetch_drydock.sh), and an Info.plist edit. Reads and rewrites, never
 #       executes, upstream's binary.
@@ -23,8 +23,8 @@ die() { echo "retarget-kext: $*" >&2; exit 1; }
 KPI_VERSION=13.0.0
 [ -f "$TBZ" ] || die "no $TBZ"
 
-# spec: 2026-11-19-macfuse-product.md "Prerequisites" plan 1 -- the back-fill's bundle id and compatible version are read from
-#       the pinned Recaulk's payload, never typed here
+# spec: components/recaulk/version -- the back-fill's bundle id and compatible version are read from the pinned Recaulk's
+#       payload, never typed here, so a Recaulk bump carries them
 set -- "$RCROOT"/Library/Extensions/*.kext
 [ $# -eq 1 ] && [ -d "$1" ] || die "$RCROOT/Library/Extensions does not hold exactly one kext (Recaulk's back-fill)"
 BF_PLIST="$1/Contents/Info.plist"
@@ -52,8 +52,8 @@ MEMBER="macfuse-$(upstream_version)-debug/KernelExtension-12/macfuse.kext"
 tar -xjf "$TBZ" -C "$W" "$MEMBER" || die "$TBZ holds no $MEMBER"
 SRC="$W/$MEMBER"
 EXE="$(plist_string "$SRC/Contents/Info.plist" CFBundleExecutable)" || die "$MEMBER's Info.plist has no CFBundleExecutable"
-# spec: global-constraints.md "Kext" -- the bundle is exactly its Info.plist and executable: anything else (a signature, resources) would
-#       ship unexamined
+# spec: tests/retarget-kext-test.sh -- the bundle is exactly its Info.plist and executable: anything else (a signature,
+#       resources) would ship unexamined
 (cd "$SRC" && find . -type f ! -name '._*' | sort) > "$W/files"
 printf '%s\n' ./Contents/Info.plist "./Contents/MacOS/$EXE" | sort > "$W/want"
 cmp -s "$W/files" "$W/want" || { diff "$W/want" "$W/files" >&2 || :; die "$MEMBER holds files other than Contents/Info.plist and Contents/MacOS/$EXE"; }

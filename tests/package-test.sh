@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic -- stevedore and shipyard's seams build and read the pkg; cpio lists its payload
-# spec: 2026-11-19-macfuse-product/task-9-brief.md Step 2 -- build/package.sh makes macfuse-V.pkg from build/stage.sh's stage:
+# spec: build/package.sh -- it makes macfuse-V.pkg from build/stage.sh's stage:
 #       in the dev.mavergreen.macfuse payload (read with stevedore expand, listed by build/list-payload.sh, and by lsbom
 #       from the BOM where lsbom exists) mount_macfuse and load_macfuse are 0/0 104755, and every other entry is 0/0
 #       with no group or other write; and shipyard's artifact conformance passes with INGREDIENTS.md's declared
@@ -65,7 +65,7 @@ fixture_inputs() {
   echo kext > "$1/k/macfuse.kext/Contents/MacOS/macfuse"; chmod 755 "$1/k/macfuse.kext/Contents/MacOS/macfuse"
 }
 
-# spec: task-9-brief.md Step 2 -- PKG's dev.mavergreen.macfuse payload, listed "./path<TAB>mode<TAB>uid/gid" into OUT
+# spec: build/list-payload.sh -- PKG's dev.mavergreen.macfuse payload, listed "./path<TAB>mode<TAB>uid/gid" into OUT
 payload_listing() {
   rm -rf "$T/x"
   "$STEVEDORE" expand "$1" "$T/x" > /dev/null || { fail "stevedore cannot expand $1"; return 1; }
@@ -80,7 +80,8 @@ payload_listing() {
     lsbom "$comp/Bom" > "$2.bom" || { fail "lsbom cannot read the BOM"; return 1; }
   fi
 }
-# spec: task-9-brief.md Step 2 -- the helpers 0/0 104755; every other entry 0/0, no group or other write
+# spec: build/stage.sh -- the helpers 0/0 104755, setuid root as upstream installs them; every other entry 0/0, no group or
+#       other write
 check_modes() {
   awk -F'\t' -v helpers="$HELPERS" '
     BEGIN { n = split(helpers, h, " "); for (i = 1; i <= n; i++) want[h[i]] = 1 }

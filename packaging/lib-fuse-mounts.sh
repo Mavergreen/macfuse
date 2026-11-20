@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: macOS-only -- sourced by the pkg's preinstall and by libexec/mavergreen/pre-uninstall on Mac OS X 10.9: mount, pkgutil, kextstat, kextunload
-# spec: 2026-11-18-macfuse-design.md "Takeover of an existing upstream install" -- definitions only. ROOT arguments are
+# spec: tests/takeover-test.sh -- the takeover of an existing upstream install; definitions only. ROOT arguments are
 #       Installer's target volume without its trailing slash: empty for the boot volume. unaccounted_paths and
 #       remove_upstream_receipts read MACFUSE_PREFIX and MACFUSE_LINKS (build/lib.sh), which the caller sets.
 #   usage: target_macos_version ROOT            prints ROOT's ProductVersion
@@ -25,8 +25,7 @@ target_macos_version() {
     END { exit !found }' "$1/System/Library/CoreServices/SystemVersion.plist" 2>/dev/null
 }
 
-# spec: 2026-11-18-macfuse-design.md "Takeover" step 2 -- the mount table alone, never the mount point: a dead FUSE mount
-#       hangs whatever touches it, and is still listed here
+# platform: the mount table alone, never the mount point: a dead FUSE mount hangs whatever touches it, and is still listed here
 fuse_mounts() {
   [ -z "$1" ] || return 0
   _mt="$(mount)" || return 1
@@ -79,8 +78,9 @@ upstream_receipt_paths() {
   done
 }
 
-# spec: 2026-11-18-macfuse-design.md "Collisions" -- every file, link or directory at, or inside a real directory at, a path a link of
-#       ours occupies, that no upstream receipt lists and that is not already our link into MACFUSE_PREFIX
+# spec: README.md "Coming from macFUSE 4" -- the installer never overwrites a file it cannot account for: every file, link or
+#       directory at, or inside a real directory at, a path a link of ours occupies, that no upstream receipt lists and that is
+#       not already our link into MACFUSE_PREFIX
 unaccounted_paths() {
   _listed="$(upstream_receipt_paths "$1")" || return 1
   printf '%s\n' "$MACFUSE_LINKS" | while read -r _p _t; do
@@ -114,7 +114,8 @@ upstream_dir_removable() {
   printf '%s\n' "$MACFUSE_LINKS" | awk -v d="$1" '$1 == d || index(d, $1 "/") == 1 { found = 1 } END { exit !found }'
 }
 
-# spec: 2026-11-18-macfuse-design.md "Takeover" step 4 -- exactly the receipts' files and links; then their directories
+# spec: README.md "Coming from macFUSE 4" -- exactly the receipts' files and links, so nothing we did not install is
+#       deleted; then their directories
 #       that are left empty, inside a bundle or at or under a path a link of ours occupies, so that no real directory is
 #       left where the payload puts a link; then the two receipts, forgotten
 remove_upstream_receipts() {
@@ -149,7 +150,8 @@ remove_upstream_receipts() {
   done
 }
 
-# spec: 2026-11-18-macfuse-design.md "Takeover" step 5 -- upstream's own updater or launch jobs, if present
+# spec: README.md "Coming from macFUSE 4" -- upstream's own updater or launch jobs, if present, which would otherwise offer
+#       upstream's releases
 remove_upstream_launchd() {
   for _j in "$1"/Library/LaunchAgents/io.macfuse.*.plist "$1"/Library/LaunchDaemons/io.macfuse.*.plist; do
     [ -f "$_j" ] || [ -L "$_j" ] || continue

@@ -1,5 +1,5 @@
 /*
- * osrelease-test.c -- the spike's four cases for libmfosrelease.dylib
+ * osrelease-test.c -- four cases for libmfosrelease.dylib
  * (shim/osrelease.c), linked against the shim so that sysctlbyname binds to
  * it: the size query and the value of kern.osrelease are the spoofed
  * "21.0.0" (7 bytes with its NUL), kern.ostype passes through to the kernel,

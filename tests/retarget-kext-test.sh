@@ -1,10 +1,10 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: 2026-11-19-macfuse-product/task-8-brief.md Steps 1 and 4 -- build/retarget-kext.sh on upstream's real debug tbz with a Recaulk
-#       root fixture: a thin x86_64 kext whose Mach-O is Drydock's golden output (GOLDEN_UNDEFINED undefined symbols, none
-#       _vnop_renamex_desc; GOLDEN_RELOCS relocations to _vnop_rename_desc), measured for the upstream tests/lib/goldens-upstream names and whose OSBundleLibraries is exactly the five 10.9 KPIs plus the back-fill at its
-#       OSBundleCompatibleVersion. An upstream plist naming com.apple.kpi.private loses it; a second run of the recipe on the
-#       output fails. SKIPs (77) without MACFUSE_DEBUG_TBZ.
+# spec: build/retarget-kext.sh -- on upstream's real debug tbz with a Recaulk root fixture: a thin x86_64 kext whose Mach-O
+#       is Drydock's golden output (GOLDEN_UNDEFINED undefined symbols, none _vnop_renamex_desc; GOLDEN_RELOCS relocations to
+#       _vnop_rename_desc), measured for the upstream tests/lib/goldens-upstream names, and whose OSBundleLibraries is
+#       exactly the five 10.9 KPIs plus the back-fill at its OSBundleCompatibleVersion. An upstream plist naming
+#       com.apple.kpi.private loses it; a second run of the recipe on the output fails. SKIPs (77) without MACFUSE_DEBUG_TBZ.
 set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "$HERE/.." && pwd)}"
@@ -56,7 +56,7 @@ cat > "$RC/Library/Extensions/RecaulkTest.kext/Contents/Info.plist" << 'EOF'
 </plist>
 EOF
 
-# spec: task-8-brief.md Step 1 -- "libs PLIST" prints OSBundleLibraries as sorted id=version lines, read apart from the script's awk
+# spec: build/lib.sh plist_string -- "libs PLIST" prints OSBundleLibraries as sorted id=version lines, read apart from the script's awk
 libs() {
   awk '
     function inner(s, tag) { sub("^[ \t]*<" tag ">", "", s); sub("</" tag ">[ \t]*$", "", s); return s }

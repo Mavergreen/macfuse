@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: 2026-11-18-macfuse-design.md decision C -- libmfosrelease.dylib (shim/osrelease.c), the sysctlbyname shim the adapted mount_macfuse
+# spec: shim/osrelease.c -- libmfosrelease.dylib, the sysctlbyname shim the adapted mount_macfuse
 #       loads, at its real tree path $MACFUSE_OSRELEASE_SHIM (build/lib.sh), never through a /Library/Filesystems link.
 #   usage: build-shim.sh STAGE
 #          Writes STAGE/$MACFUSE_OSRELEASE_SHIM, replacing only that file. Fails, leaving any earlier one, on any error.

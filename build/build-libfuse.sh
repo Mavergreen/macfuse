@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: 2026-11-18-macfuse-spike-findings.md "libfuse 2 and 3" -- neither autotools nor meson exists on a native 10.9 build, so each tree's
+# spec: tests/libfuse-exports-test.sh -- neither autotools nor meson exists on a native 10.9 build, so each tree's
 #       library sources are compiled directly: the source lists of library2/lib/Makefile.am (DARWIN, ICONV) and
 #       library3/lib/meson.build (darwin, HAVE_ICONV), with the hand-written config headers of libfuse/config/.
 #   usage: build-libfuse.sh SRC STAGE EXAMPLES
@@ -40,7 +40,8 @@ CC="$CL/bin/clang"
 TREE="$STAGE$MACFUSE_PREFIX"
 LIBDIR="$TREE/lib"
 INCDIR="$TREE/include"
-# spec: .superpowers/sdd/2026-11-19-macfuse-product/global-constraints.md -- install names and the .pc/.la paths stay upstream's; /usr/local links into the tree
+# spec: README.md "Install" -- install names and the .pc/.la paths stay upstream's, so third-party binaries and builds find them;
+#       /usr/local links into the tree
 UPSTREAM_PREFIX=/usr/local
 W="$(mktemp -d "$BUILD/libfuse.XXXXXX")"
 trap 'rm -rf "$W"' EXIT
@@ -57,7 +58,7 @@ LINK="-fuse-ld=lld -Wl,-headerpad_max_install_names"
 #           neither ld64.lld nor 10.9's ld64 has, so these are plain links; iconv is libiconv.2 on 10.9, not libSystem
 LIBS="-F$FWDIR -framework MFMount -framework CoreFoundation -framework DiskArbitration -licucore -liconv -lpthread"
 NM="$CL/bin/llvm-nm" sh "$REPO_ROOT/build/recaulk-unexported.sh" "$RC/lib/librecaulk.a" > "$W/unexported"
-# spec: 2026-11-18-macfuse-spike-findings.md "libfuse 2 and 3" adaptation 5 -- without the list, _clock_gettime and _aligned_alloc are exported; upstream exports neither
+# spec: tests/libfuse-exports-test.sh -- without the list, _clock_gettime and _aligned_alloc are exported; upstream exports neither
 RECAULK="$RC/lib/librecaulk.a -Wl,-unexported_symbols_list,$W/unexported"
 
 # platform: 10.9's <sys/kauth.h> uses gid_t without including <sys/types.h>, and modules/threadid.c includes it first
@@ -121,7 +122,7 @@ cp "$CFG/lib3/libfuse_config.h" "$W/include/fuse3/libfuse_config.h"
 sed -e "s|@prefix@|$UPSTREAM_PREFIX|" -e "s|@VERSION@|$v3|" "$CFG/lib3/fuse3.pc.in" > "$W/lib/pkgconfig/fuse3.pc"
 
 echo "== examples"
-# spec: 2026-11-18-macfuse-spike-findings.md "libfuse 2 and 3" adaptation 6 -- built as a third-party file system would be, against the staged public headers and
+# spec: tests/smoke-mavericks.sh -- built as a third-party file system would be, against the staged public headers and
 #       dylibs; libfuse 3's examples use plain struct stat, so FUSE_DARWIN_ENABLE_EXTENSIONS=0 (upstream's meson
 #       skips the examples on darwin); passthrough.c also needs example-compat.h (O_DIRECT, mkfifoat, mknodat)
 EXC="$BASE -O2 -g -Wall -Wno-unused-parameter -D_FILE_OFFSET_BITS=64 -D_REENTRANT"
@@ -135,7 +136,7 @@ EXC="$BASE -O2 -g -Wall -Wno-unused-parameter -D_FILE_OFFSET_BITS=64 -D_REENTRAN
 "$CC" $EXC -DFUSE_DARWIN_ENABLE_EXTENSIONS=0 -I"$W/include/fuse3" -I"$CFG/lib3" -include "$CFG/lib3/example-compat.h" \
   "$L3/example/passthrough.c" $LINK -L"$W/lib" -lfuse3.4 $RECAULK -o "$W/ex/passthrough3"
 
-# spec: 2026-11-19-macfuse-product/task-7-brief.md (task 4 review Minor 1) -- lib/ and include/ are shared with other build scripts (build/build-shim.sh), so only
+# spec: tests/libfuse-exports-test.sh -- lib/ and include/ are shared with other build scripts (build/build-shim.sh), so only
 #       libfuse's own files and directories are replaced, each whole
 mkdir -p "$LIBDIR/pkgconfig" "$INCDIR" "$EX"
 for f in libfuse.2.dylib libfuse.dylib libfuse.la libfuse3.4.dylib libfuse3.dylib pkgconfig/fuse.pc pkgconfig/fuse3.pc; do

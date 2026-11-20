@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic -- shipyard's stevedore seams build the pkg
-# spec: 2026-11-19-macfuse-product/task-9-brief.md "Produces" -- tests/package-test.sh holds the contract.
+# spec: tests/package-test.sh -- holds the contract.
 #   usage: package.sh --stage DIR --updater-app APP --version V --out DIR
 #          Packages build/stage.sh's stage DIR, with APP (build/build-updater.sh's macfuse-updater.app) as the family
 #          updater, as OUT/macfuse-V.pkg: dev.mavergreen.base first, then dev.mavergreen.macfuse, with the 10.9.5 floor.
@@ -43,7 +43,8 @@ esac
 H="$stage$MACFUSE_PREFIX/fs/Contents/Resources"
 [ -f "$H/mount_macfuse" ] && [ -d "$stage$MACFUSE_PREFIX/fs/Contents/Extensions/10/macfuse.kext" ] ||
   die "$stage is not a build/stage.sh stage"
-# spec: global-constraints.md "mount_macfuse and load_macfuse: setuid root (root:wheel 4755) as installed" -- stevedore takes the mode from the stage
+# spec: tests/package-test.sh -- mount_macfuse and load_macfuse install setuid root (root:wheel 4755), as upstream's do, and
+#       stevedore takes the mode from the stage
 for h in mount_macfuse load_macfuse; do
   [ -n "$(find "$H/$h" -perm 4755)" ] || die "$h is not 4755 in $stage: stage it with build/stage.sh"
 done

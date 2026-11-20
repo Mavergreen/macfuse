@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: macOS-only -- sources tests/vm/lib.sh, the 10.9 guest scripts' library, which is written for Darwin's mount and ps
-# spec: 2026-11-19-macfuse-product/task-11-rereview-1.md Important 1, 3 and 5 -- the guest library's failure and cleanup
+# spec: tests/vm/lib.sh -- the guest library's failure and cleanup
 #       paths, with no FUSE: (1) a failing or hung must whose command's output is redirected still prints its FAIL line on
 #       the script's real stderr, and nothing of it lands in the redirect; (2) the EXIT cleanup runs its CLEAN_HOOK to the
 #       end through a second TERM and an INT; (3) safe_rm refuses a symbolic link and leaves its target, refuses a

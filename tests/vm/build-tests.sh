@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: 2026-11-19-macfuse-product/task-11-brief.md -- builds the 10.9 acceptance job's own test file systems with the
+# spec: .github/workflows/on-mavericks.yml -- builds the 10.9 acceptance job's own test file systems with the
 #       family toolchain (build/lib.sh macfuse_toolchain: clang22, the 10.9 SDK, the pinned Recaulk), as a third-party
 #       developer would build them; in the job it runs in the guest, where clang22 is fetched for 10.9.
 #   usage: build-tests.sh probe-fs OUT TREE_ROOT

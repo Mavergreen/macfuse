@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: macOS-only -- loads the kext and mounts FUSE volumes on a real Mac OS X 10.9 box (the acceptance job's guest)
-# spec: 2026-11-19-macfuse-product/task-11-brief.md Scenario A and 2026-11-18-macfuse-design.md "Proof" -- the installed
+# spec: .github/workflows/on-mavericks.yml scenario-a -- the installed
 #       product on 10.9: the manifest is the run's version; /Library/Filesystems/macfuse.fs resolves into the tree; nothing is
 #       preloaded, and the first mount's load_macfuse alone loads the kext and its Recaulk back-fill, whose vnode_notify
 #       forwards once the mount is used; libfuse 3 and 2 hello, passthrough3 with tests/vm/ops.sh, the default-op test, the
@@ -103,9 +103,9 @@ mkdir -p "$S" || fail "mkdir $S"
 start_fs passthrough3 "$W/mnt/pt"; PT=$FS_PID; PTLOG=$FS_LOG
 must 600 "tests/vm/ops.sh on passthrough3" sh "$REPO_ROOT/tests/vm/ops.sh" "$W/mnt/pt$S" > "$SMOKE_LOGS/ops.log" 2>&1
 cat "$SMOKE_LOGS/ops.log"
-# spec: 2026-11-19-macfuse-product/task-8-report.md Deviation 1 -- Recaulk's back-fill resolves vnode_notify on first use, so
-#       the forwarding is asserted once a mount has been used for something that notifies: hello3 is read-only and its reads
-#       and lookups notify nothing (task-11-report.md), so it is asserted after passthrough3's writes, renames and xattrs
+# spec: components/recaulk/version -- Recaulk's back-fill resolves vnode_notify on first use, so the forwarding is asserted
+#       once a mount has been used for something that notifies: hello3 is read-only and its reads and lookups notify nothing
+#       (seen on the 10.9 VM, 2026-11-20), so it is asserted after passthrough3's writes, renames and xattrs
 n="$(sysctl -n debug.recaulk_kpi.vnode_notify_forwarded 2>/dev/null || echo 0)"
 [ "$n" -gt 0 ] 2>/dev/null || fail "debug.recaulk_kpi.vnode_notify_forwarded is '$n' after passthrough3's ops"
 if [ "${SMOKE_FRESH:-1}" = 1 ]; then
@@ -117,7 +117,7 @@ must 60 "tests/vm/default-op.py" python "$REPO_ROOT/tests/vm/default-op.py" "$W/
 cat "$SMOKE_LOGS/default-op.log"
 rm -f "$S/x" "$S/y"
 stop_fs "$W/mnt/pt" "$PT" "$PTLOG"
-# spec: task-11-rereview-1.md Important 2 -- gate0b's mount points are this script's too, should the watchdog cut its
+# spec: tests/vm/lib.sh cleanup_on_exit -- gate0b's mount points are this script's too, should the watchdog cut gate0b's
 #       own cleanup short
 track_mount "$W/gate0b/mnt/pt"; track_mount "$W/gate0b/mnt/probe"
 must $((${GATE0B_SECS:-60} + 900)) "tests/vm/gate0b.sh" sh "$REPO_ROOT/tests/vm/gate0b.sh" "$BIN" "$W/gate0b"
@@ -156,7 +156,7 @@ for e in hello3 hello2; do
   is_mounted "$W/mnt/bad" && fail "$e with an unknown option left a volume mounted"
 done
 ok "hello3 and hello2 refuse an unknown option by name, and mount nothing"
-# spec: task-11-report.md "Fix round 1" (3) -- mount_macfuse itself, as libfuse would exec it, but with no daemon behind the
+# spec: README.md "Known limits" -- mount_macfuse itself, as libfuse would exec it, but with no daemon behind the
 #       socket: upstream's mount_macfuse has no unknown-option message (it splits -o with strtok against its own table and
 #       ignores what it does not know), so the option is not refused here; what must hold is that the run ends, non-zero,
 #       saying why, with no volume and no hang -- mount(2) gives up when no daemon answers INIT (EAGAIN, about 50 s)
@@ -169,10 +169,11 @@ is_mounted "$W/mnt/bad" && fail "mount_macfuse -o mavergreen_no_such_option left
 ok "mount_macfuse -o mavergreen_no_such_option, no daemon: exit $rc, '$(grep -m1 '^mount_macfuse: ' "$SMOKE_LOGS/bad-mount_macfuse.log")', no volume"
 
 echo "== mount_macfuse's failure path, once"
-# spec: 2026-11-18-macfuse-design.md decision D -- with libfuse's environment but a closed _FUSE_COMMFD, the adapted
+# spec: INGREDIENTS.md "Conformance deviations" sdk-pin (the closed helper records SDK 27.0, so its CF path runs here once)
+#       -- with libfuse's environment but a closed _FUSE_COMMFD, the adapted
 #       setuid mount_macfuse passes its 10.9 gate, runs load_macfuse, opens the device, then fails to send the fd and exits
 #       through its CF exit handler (a distributed notification); it must say so and exit non-zero, without crashing or
-#       hanging. _FUSE_DAEMON_PATH is set as libfuse sets it: without it upstream's handler crashes (task-11-report.md).
+#       hanging. _FUSE_DAEMON_PATH is set as libfuse sets it: without it upstream's handler crashes (README.md "Known limits").
 before="$(crash_reports mount_macfuse | wc -l)"
 mkdir -p "$W/mnt/alert"
 track_mount "$W/mnt/alert"

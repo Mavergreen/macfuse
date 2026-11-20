@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: macOS-only -- runs inside the pkg's preinstall on Mac OS X 10.9
-# spec: 2026-11-19-macfuse-product/task-10-brief.md "Order in the preinstall hook" -- build/lib.sh's macfuse_preinstall_hook
+# spec: tests/takeover-test.sh -- build/lib.sh's macfuse_preinstall_hook
 #       puts MACFUSE_PREFIX, MACFUSE_LINKS and packaging/lib-fuse-mounts.sh before this; stage_product.sh runs it in a subshell
 #       after unlinking the installed version and before removing its tree, so it runs before the payload lands
 macfuse_takeover() {
