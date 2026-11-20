@@ -1,8 +1,8 @@
 name: conventions
 
-# The family conventions gate (concurrency declared, tests actually run, INGREDIENTS.md present, no
-# Renovate key restating the preset, a release that publishes notes). Three lines on purpose: the
-# checks live in shipyard, so adding one never touches this file.
+# spec: Mavergreen/shipyard .github/workflows/family-conventions.yml -- the family conventions gate (concurrency
+#       declared, tests actually run, INGREDIENTS.md present, no Renovate key restating the preset, a release that
+#       publishes notes). Three lines on purpose: the checks live in shipyard, so adding one never touches this file.
 
 on:
   push:

@@ -1,6 +1,6 @@
 # platform: host-agnostic
-# Sourced by every build script. The ONE place the install prefixes are spelled: every path a setuid
-# helper loads derives from MACFUSE_PREFIX or RECAULK_PREFIX. Interim prefix, see the design spec.
+# spec: 2026-11-18-macfuse-design.md decision F -- sourced by every build script; the ONE place the (interim) install
+#       prefixes are spelled: every path a setuid helper loads derives from MACFUSE_PREFIX or RECAULK_PREFIX
 if [ -z "${REPO_ROOT:-}" ]; then
   [ -f ./build/lib.sh ] || { echo "lib.sh: set REPO_ROOT, or source from the repo root" >&2; return 1 2>/dev/null || exit 1; }
   REPO_ROOT="$(pwd)"
@@ -8,12 +8,16 @@ fi
 MACFUSE_PREFIX="${MACFUSE_PREFIX:-/usr/local/mavergreen/macfuse}"
 RECAULK_PREFIX="${RECAULK_PREFIX:-/usr/local/mavergreen/recaulk}"
 export REPO_ROOT MACFUSE_PREFIX RECAULK_PREFIX
+# spec: 2026-11-18-macfuse-design.md decision C -- the two dylibs the adapted mount_macfuse loads, at real tree paths (never through a link)
+MACFUSE_OSRELEASE_SHIM="$MACFUSE_PREFIX/lib/libmfosrelease.dylib"
+RECAULK_SYSTEM_DYLIB="$RECAULK_PREFIX/lib/libRecaulkSystem.dylib"
+export MACFUSE_OSRELEASE_SHIM RECAULK_SYSTEM_DYLIB
 
-# The bare upstream version (5.5.0), read from the file, never spelled here.
+# spec: 2026-11-19-macfuse-product/global-constraints.md -- UPSTREAM_VERSION holds the bare upstream version (5.5.0); it is read from the file, never spelled here
 upstream_version() { tr -d '[:space:]' < "$REPO_ROOT/UPSTREAM_VERSION"; echo; }
 
-# The pinned upstream sources: KEY, output directory, GitHub repository, gitlink in macfuse/macfuse.
-# build/fetch-sources.sh and scripts/pin-sources.sh both read this table; components/macfuse-sources/pins holds the pins.
+# spec: build/fetch-sources.sh and scripts/pin-sources.sh both read this table of the pinned upstream sources (KEY,
+#       output directory, GitHub repository, gitlink in macfuse/macfuse); components/macfuse-sources/pins holds the pins
 MACFUSE_SOURCES="LIBRARY2 library2 macfuse/library Library-2
 LIBRARY3 library3 macfuse/library Library-3
 MOUNT mount macfuse/mount Mount

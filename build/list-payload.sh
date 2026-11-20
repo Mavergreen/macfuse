@@ -1,8 +1,8 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: the listing comes from the payload archive (cpio), because stevedore 20261027.1 has no BOM reader
+# spec: _pkg-meta/core.bom.txt (build/extract-dmg.sh) is listed from the payload archive (cpio), because stevedore 20261027.1 has no BOM reader
 # usage: list-payload.sh PAYLOAD.cpio OUT
-# Writes "./path<TAB>octal-mode<TAB>uid/gid" per entry. Fails, leaving no OUT, if cpio fails or lists nothing.
+#        Writes "./path<TAB>octal-mode<TAB>uid/gid" per entry. Fails, leaving no OUT, if cpio fails or lists nothing.
 set -eu
 [ $# -eq 2 ] || { echo "usage: $0 PAYLOAD.cpio OUT" >&2; exit 2; }
 cpio_in=$1
@@ -14,7 +14,7 @@ trap 'exit 143' TERM
 # platform: listed to a file, not piped, so a failing cpio fails here rather than leaving a truncated listing
 cpio -itnv < "$cpio_in" > "$list" || { echo "list-payload: cpio could not list $cpio_in" >&2; exit 1; }
 [ -s "$list" ] || { echo "list-payload: $cpio_in lists no entries" >&2; exit 1; }
-# bsdcpio -tnv: "<symbolic mode> <nlink> <uid> <gid> <size> <3-word date> <name>[ -> target]"
+# platform: bsdcpio -tnv prints "<symbolic mode> <nlink> <uid> <gid> <size> <3-word date> <name>[ -> target]"
 awk '
   function oct(s,   i, c, d, p, sp, t) {
     t = substr(s, 1, 1)

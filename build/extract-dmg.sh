@@ -2,8 +2,8 @@
 # platform: macOS-only -- hdiutil attaches the APFS dmg; nothing on 10.9 or Linux reads APFS yet
 # spec: _pkg-meta/core.bom.txt is listed from the Core payload archive (path, mode, uid/gid), because stevedore 20261027.1 has no BOM reader
 # usage: extract-dmg.sh DMG OUTDIR (OUTDIR must be absent or empty)
-# Writes the Core component's payload under OUTDIR at its install paths, plus OUTDIR/_pkg-meta/core.bom.txt.
-# Nothing from the image is ever executed.
+#        Writes the Core component's payload under OUTDIR at its install paths, plus OUTDIR/_pkg-meta/core.bom.txt.
+#        Nothing from the image is ever executed.
 set -eu
 REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"; export REPO_ROOT
 . "$REPO_ROOT/build/lib.sh"

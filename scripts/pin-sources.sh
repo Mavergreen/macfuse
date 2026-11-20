@@ -1,11 +1,11 @@
 #!/bin/sh
 # platform: host-agnostic
 # usage: sh scripts/pin-sources.sh VERSION
-# CI and dev only; needs git (the one script that does). Reads the gitlinks Library-2, Library-3, Mount and
-# Framework of macfuse/macfuse at tag macfuse-VERSION, fetches GitHub's tarball of each commit, checks with git
-# that the tarball holds exactly that commit's tree, and writes components/macfuse-sources/pins: the digests
-# and the tarballs' SHA-256s. The file is written once, by a rename, after all four pass; any failure or signal
-# leaves it as it was.
+#        CI and dev only; needs git (the one script that does). Reads the gitlinks Library-2, Library-3, Mount and
+#        Framework of macfuse/macfuse at tag macfuse-VERSION, fetches GitHub's tarball of each commit, checks with git
+#        that the tarball holds exactly that commit's tree, and writes components/macfuse-sources/pins: the digests
+#        and the tarballs' SHA-256s. The file is written once, by a rename, after all four pass; any failure or signal
+#        leaves it as it was.
 set -eu
 REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"; export REPO_ROOT
 . "$REPO_ROOT/build/lib.sh"

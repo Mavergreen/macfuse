@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# Task 3: scripts/pin-sources.sh against fixture git repos and a file:// codeload tree.
+# spec: scripts/pin-sources.sh (task 3), tested against fixture git repos and a file:// codeload tree.
 set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"

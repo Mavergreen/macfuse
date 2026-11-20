@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# Task 1 skeleton: release-notes URL, build/lib.sh defaults, msc.sh byte-identical to shipyard's template.
+# spec: build/lib.sh and build/msc.sh (task 1 skeleton) -- release-notes URL, build/lib.sh defaults, msc.sh byte-identical to shipyard's template.
 set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"

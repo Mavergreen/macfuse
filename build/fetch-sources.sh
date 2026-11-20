@@ -1,10 +1,10 @@
 #!/bin/sh
 # platform: host-agnostic
 # usage: fetch-sources.sh OUTDIR
-# Fetches the four pinned upstream source trees (components/macfuse-sources/pins) into
-# OUTDIR/{library2,library3,mount,framework}, each GitHub's tarball of its pinned commit verified by its
-# SHA-256 (shipyard's fetch_pinned_source.sh). Exits non-zero, naming the pin, on any failure; OUTDIR is
-# touched only when all four have been fetched. No git: this runs on 10.9.
+#        Fetches the four pinned upstream source trees (components/macfuse-sources/pins) into
+#        OUTDIR/{library2,library3,mount,framework}, each GitHub's tarball of its pinned commit verified by its
+#        SHA-256 (shipyard's fetch_pinned_source.sh). Exits non-zero, naming the pin, on any failure; OUTDIR is
+#        touched only when all four have been fetched. No git: this runs on 10.9.
 set -eu
 REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"; export REPO_ROOT
 . "$REPO_ROOT/build/lib.sh"

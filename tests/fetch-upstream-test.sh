@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# Task 2: build/fetch-upstream.sh against a fixture release dir served over file://.
+# spec: build/fetch-upstream.sh (task 2), tested against a fixture release dir served over file://.
 set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"

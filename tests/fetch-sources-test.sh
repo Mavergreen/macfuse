@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# Task 3: build/fetch-sources.sh against fixture tarballs served over file://.
+# spec: build/fetch-sources.sh (task 3), tested against fixture tarballs served over file://.
 set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"

@@ -135,9 +135,16 @@ EXC="$BASE -O2 -g -Wall -Wno-unused-parameter -D_FILE_OFFSET_BITS=64 -D_REENTRAN
 "$CC" $EXC -DFUSE_DARWIN_ENABLE_EXTENSIONS=0 -I"$W/include/fuse3" -I"$CFG/lib3" -include "$CFG/lib3/example-compat.h" \
   "$L3/example/passthrough.c" $LINK -L"$W/lib" -lfuse3.4 $RECAULK -o "$W/ex/passthrough3"
 
-mkdir -p "$TREE" "$EX"
-rm -rf "$LIBDIR" "$INCDIR"
-mv "$W/lib" "$LIBDIR"
-mv "$W/include" "$INCDIR"
+# spec: 2026-11-19-macfuse-product/task-7-brief.md (task 4 review Minor 1) -- lib/ and include/ are shared with other build scripts (build/build-shim.sh), so only
+#       libfuse's own files and directories are replaced, each whole
+mkdir -p "$LIBDIR/pkgconfig" "$INCDIR" "$EX"
+for f in libfuse.2.dylib libfuse.dylib libfuse.la libfuse3.4.dylib libfuse3.dylib pkgconfig/fuse.pc pkgconfig/fuse3.pc; do
+  rm -rf "${LIBDIR:?}/$f"
+  mv "$W/lib/$f" "$LIBDIR/$f"
+done
+for f in fuse.h fuse fuse3; do
+  rm -rf "${INCDIR:?}/$f"
+  mv "$W/include/$f" "$INCDIR/$f"
+done
 for e in hello2 hello3 passthrough3; do mv -f "$W/ex/$e" "$EX/$e"; done
 echo "built $LIBDIR, $INCDIR and $EX"

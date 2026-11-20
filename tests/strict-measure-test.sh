@@ -19,7 +19,7 @@ trap 'exit 143' TERM
 mkdir -p "$T/build" "$T/tests/lib" "$T/bin"
 cp "$REAL/INGREDIENTS.md" "$T/INGREDIENTS.md"
 cp "$REAL/tests/lib/objc-measure.tsv" "$T/tests/lib/objc-measure.tsv"
-for b in macFUSE libfuse.2.dylib libfuse3.4.dylib MFMount; do : > "$T/bin/$b"; done
+for b in macFUSE libfuse.2.dylib libfuse3.4.dylib MFMount mount_macfuse; do : > "$T/bin/$b"; done
 case_() {
   bin=$1 name=$2 want=$3 rc=$4; shift 4
   { echo '#!/bin/sh'; for l in "$@"; do printf "echo '%s' >&2\n" "$l"; done; echo "exit $rc"; } > "$T/build/compat-guard.sh"
@@ -35,8 +35,26 @@ EL='objc-compat: escaping-dependency: /usr/local/lib/libfuse.2.dylib: a non-syst
 EM='objc-compat: escaping-dependency: /Library/Filesystems/macfuse.fs/Contents/Frameworks/MFMount.framework/Versions/A/MFMount: a non-system path outside the shipped root'
 case_ macFUSE clean pass 0 'compat guard: 1 binaries clean'
 case_ macFUSE today pass 4 "$LW" "$I1" "$I2" "$CM"
-case_ macFUSE its-libfuse pass 4 "$EL" "$CM"
+case_ macFUSE latent-libfuse-dependency fail 4 "$EL" "$CM"
+case_ macFUSE one-gap-closed fail 4 "$LW" "$I1" "$CM"
 case_ macFUSE extra-indirect-site fail 4 "$LW" "$I1" "$I2" "$I1" "$CM"
+SP='objc-compat: indirect-objc-entry: objc entry point spilled to a frame slot that a frame address escaped on some path may reach'
+R13='objc-compat: indirect-objc-entry: objc entry point in r13 is spilled where another path left a different value'
+RBP='objc-compat: indirect-objc-entry: objc entry point spilled to [rbp-7696] is read other than by a reload into a register'
+spills() { i=0; while [ "$i" -lt "$1" ]; do printf '%s\n' "$SP"; i=$((i + 1)); done; }
+mm_case() {
+  n=$1 name=$2 want=$3; shift 3
+  old_ifs=$IFS; IFS='
+'
+  # shellcheck disable=SC2046
+  case_ mount_macfuse "$name" "$want" 4 $(spills "$n") "$@" "$CM"
+  IFS=$old_ifs
+}
+mm_case 155 today pass "$R13" "$RBP"
+mm_case 154 one-spill-fewer fail "$R13" "$RBP"
+mm_case 156 one-spill-more fail "$R13" "$RBP"
+mm_case 155 r13-gap-closed fail "$RBP"
+case_ macFUSE mount_macfuse-s-spill fail 4 "$LW" "$I1" "$I2" "$SP" "$CM"
 case_ macFUSE other-register fail 4 'objc-compat: indirect-objc-entry: objc entry point in rbx is called through where another path left a different value' "$CM"
 case_ macFUSE new-absolute-dependency fail 4 "$EL" 'objc-compat: escaping-dependency: /usr/local/lib/libfoo.dylib: a non-system path outside the shipped root' "$CM"
 case_ macFUSE libfuse-s-dependency fail 4 "$EM" "$CM"
@@ -54,4 +72,4 @@ grep -v '^- objc-measure:macFUSE:' "$REAL/INGREDIENTS.md" > "$T/INGREDIENTS.md"
 case_ macFUSE undeclared fail 4 "$LW" "$I1" "$I2" "$CM"
 case_ libfuse.2.dylib others-still-declared pass 4 "$EM" "$CM"
 [ "$fails" -eq 0 ] || exit 1
-echo "strict-measure-test: PASS (19 cases)"
+echo "strict-measure-test: PASS (25 cases)"

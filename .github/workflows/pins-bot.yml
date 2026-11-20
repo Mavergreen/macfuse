@@ -1,19 +1,19 @@
 name: pins-bot
 
-# A macFUSE bump's Renovate PR moves UPSTREAM_VERSION. The builds fetch the four source commits that release pins
-# (components/macfuse-sources/pins), each as GitHub's tarball verified by a SHA-256 that Renovate cannot compute,
-# so until the pins move CI fails at the first fetch. This fills them on Renovate's own branch, in two jobs:
-# - pins (contents: read) runs scripts/pin-sources.sh, which reads the release's gitlinks, downloads the tarballs
-#   and checks with git that each holds exactly its commit's tree. Upstream's bytes are read there, never run,
-#   and never beside a token that can write. It outputs the eight KEY=VALUE words, or nothing when the pins
-#   already hold them.
-# - push touches no upstream byte: it validates the eight words, writes them into the pins file, commits, and
-#   pushes to the branch with a token of the Mavergreen pins-bot GitHub App (org variable PINS_BOT_CLIENT_ID,
-#   org secret PINS_BOT_PRIVATE_KEY; minted for this repository with contents: write alone). A push made with
-#   GITHUB_TOKEN starts no workflow, and a run it dispatches does not count for the PR's required check; the
-#   App's push starts release.yml like any push, and that run's `build` job is main's required check on the new
-#   head, so a patch bump automerges on green. Hence no dispatch step. The job's own GITHUB_TOKEN reads only.
-# renovate.json's gitIgnoredAuthors keeps this bot's commit from marking the branch as edited by someone else.
+# spec: scripts/pin-sources.sh -- A macFUSE bump's Renovate PR moves UPSTREAM_VERSION. The builds fetch the four source commits that release pins
+#       (components/macfuse-sources/pins), each as GitHub's tarball verified by a SHA-256 that Renovate cannot compute,
+#       so until the pins move CI fails at the first fetch. This fills them on Renovate's own branch, in two jobs:
+#       - pins (contents: read) runs scripts/pin-sources.sh, which reads the release's gitlinks, downloads the tarballs
+#         and checks with git that each holds exactly its commit's tree. Upstream's bytes are read there, never run,
+#         and never beside a token that can write. It outputs the eight KEY=VALUE words, or nothing when the pins
+#         already hold them.
+#       - push touches no upstream byte: it validates the eight words, writes them into the pins file, commits, and
+#         pushes to the branch with a token of the Mavergreen pins-bot GitHub App (org variable PINS_BOT_CLIENT_ID,
+#         org secret PINS_BOT_PRIVATE_KEY; minted for this repository with contents: write alone). A push made with
+#         GITHUB_TOKEN starts no workflow, and a run it dispatches does not count for the PR's required check; the
+#         App's push starts release.yml like any push, and that run's `build` job is main's required check on the new
+#         head, so a patch bump automerges on green. Hence no dispatch step. The job's own GITHUB_TOKEN reads only.
+#       renovate.json's gitIgnoredAuthors keeps this bot's commit from marking the branch as edited by someone else.
 
 on:
   push:
@@ -22,8 +22,8 @@ on:
 
 permissions: {}
 
-# The run the bot's own push starts gets a group of its own, and its jobs are skipped: that push is the checked
-# pins, and it must not cancel the run that made it.
+# platform: the run the bot's own push starts gets a group of its own, and its jobs are skipped: that push is the
+#           checked pins, and it must not cancel the run that made it.
 concurrency:
   group: pins-bot-${{ github.ref }}${{ github.actor == 'mavergreen-pins-bot[bot]' && format('-{0}', github.run_id) || '' }}
   cancel-in-progress: true

@@ -3,12 +3,14 @@
 #          Runs build/compat-guard.sh (OBJC_STRICT) on BINARY as a recorded measurement, writing its output to
 #          LOG and to stdout. Returns 0 when the guard is clean, or when it cannot measure (exit 4) and both:
 #          INGREDIENTS.md declares "- objc-measure:<BINARY's basename>: ..." (read with shipyard's deviations.sh),
-#          and every analyzer finding is one REPO_ROOT/tests/lib/objc-measure.tsv lists for that basename
-#          (basename TAB most-times TAB exact finding line), seen no more often than listed. Returns 1 otherwise:
-#          another finding, one finding too often, a basename with no declaration or no rows, a failed check,
-#          or a shipyard whose Drydock is too old to measure. Needs REPO_ROOT and SHIPYARD_SCRIPTS.
+#          and the analyzer's findings are exactly the rows REPO_ROOT/tests/lib/objc-measure.tsv lists for that
+#          basename (basename TAB times TAB exact finding line), each seen exactly as often as listed. Returns 1
+#          otherwise: another finding, a finding seen more or less often than listed (a row gone stale), a basename
+#          with no declaration or no rows, a failed check, or a shipyard whose Drydock is too old to measure.
+#          Needs REPO_ROOT and SHIPYARD_SCRIPTS.
 # spec: INGREDIENTS.md "Conformance deviations" objc-measure -- the three Drydock gaps, excused per binary by the exact finding
-#       and its count, so that a new send through a copied register or a new absolute dependency still fails
+#       and its exact count, so that a new send through a copied register or a new absolute dependency still fails, and a
+#       gap Drydock closes (fewer findings) forces the allowlist down with it
 strict_measure() {
   _sm_b="$(basename "$1")"
   _sm_rc=0
@@ -28,10 +30,8 @@ strict_measure() {
     BEGIN { while ((getline l < allow) > 0) { split(l, f, "\t"); if (f[1] == b) max[f[3]] = f[2] } }
     { seen[$0]++ }
     END {
-      for (s in seen) {
-        if (!(s in max)) { print "not a declared gap for " b ": " s; bad = 1 }
-        else if (seen[s] > max[s]) { print "seen " seen[s] " times, declared for " b " at most " max[s] ": " s; bad = 1 }
-      }
+      for (s in seen) if (!(s in max)) { print "not a declared gap for " b ": " s; bad = 1 }
+      for (s in max) if (seen[s] + 0 != max[s]) { print "seen " seen[s] + 0 " times, declared for " b " exactly " max[s] " (update tests/lib/objc-measure.tsv): " s; bad = 1 }
       exit bad
     }' "$2.findings" > "$2.other" || {
     cat "$2.other" >&2

@@ -29,6 +29,21 @@
       "depNameTemplate": "Mavergreen/recaulk",
       "datasourceTemplate": "github-releases",
       "versioningTemplate": "regex:^(?<major>\\d{8})\\.(?<minor>\\d+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "The Drydock pin: a Mavergreen/drydock release tag (vX.Y.Z), as shipyard's fetch_drydock.sh reads it; build/adapt-helpers.sh rewrites upstream's closed mount_macfuse and load_macfuse with its drydock-macho-rewrite.",
+      "managerFilePatterns": ["/^components/drydock/version$/"],
+      "matchStrings": ["^(?<currentValue>\\S+)\\s*$"],
+      "depNameTemplate": "Mavergreen/drydock",
+      "datasourceTemplate": "github-releases"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Renovate moves components/drydock/version but cannot write the Linux archive's digest beside it, so a Linux build fails at the fetch until components/drydock/linux-sha256 names the new release's archive.",
+      "matchDepNames": ["Mavergreen/drydock"],
+      "prBodyNotes": ["Before this can merge, replace components/drydock/linux-sha256 with the `drydock-<version without v>-linux-x86_64.tar.gz` line of the new release's SHA256SUMS: `gh release download <tag> -R Mavergreen/drydock -p SHA256SUMS -O - | grep linux-x86_64.tar.gz > components/drydock/linux-sha256`. The bump must pass tests/helpers-recipe-test.sh, its strict guard measurement included."]
     }
   ]
 }

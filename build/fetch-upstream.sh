@@ -1,8 +1,8 @@
 #!/bin/sh
 # platform: host-agnostic
 # usage: fetch-upstream.sh VERSION OUTDIR
-# Downloads macFUSE VERSION's dmg, debug tbz and .sha256 into OUTDIR and verifies each asset against
-# its own line in the .sha256. Exits non-zero, naming the asset, on any mismatch, absence or duplicate.
+#        Downloads macFUSE VERSION's dmg, debug tbz and .sha256 into OUTDIR and verifies each asset against
+#        its own line in the .sha256. Exits non-zero, naming the asset, on any mismatch, absence or duplicate.
 set -eu
 REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"; export REPO_ROOT
 . "$REPO_ROOT/build/lib.sh"
@@ -23,7 +23,7 @@ for f in $sums $assets; do
 done
 
 for f in $assets; do
-  # each line is "<sum>  <name>" or "<sum> *<name>"; match the name exactly
+  # platform: a .sha256 line is "<sum>  <name>" or, with shasum's binary marker, "<sum> *<name>"; match the name exactly
   n="$(awk -v n="$f" '{ x = $2; sub(/^\*/, "", x); if (x == n) c++ } END { print c + 0 }' "$out/$sums")"
   [ "$n" -ne 0 ] || { echo "fetch-upstream: $f is not listed in $sums" >&2; rm -f "$out/$f"; exit 1; }
   [ "$n" -eq 1 ] || { echo "fetch-upstream: $f is listed $n times in $sums" >&2; rm -f "$out/$f"; exit 1; }

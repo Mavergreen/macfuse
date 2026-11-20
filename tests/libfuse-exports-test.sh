@@ -30,8 +30,18 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 macfuse_toolchain libfuse-exports-test || { echo "FAIL: no toolchain" >&2; exit 1; }
 sh "$REPO_ROOT/build/build-mfmount.sh" "$SRC" "$T/stage" > "$T/build.log" 2>&1 || { cat "$T/build.log" >&2; echo "FAIL: build-mfmount.sh failed" >&2; exit 1; }
-sh "$REPO_ROOT/build/build-libfuse.sh" "$SRC" "$T/stage" "$T/ex" > "$T/build.log" 2>&1 || { tail -40 "$T/build.log" >&2; echo "FAIL: build-libfuse.sh failed" >&2; exit 1; }
 OURS="$T/stage$MACFUSE_PREFIX"
+# spec: 2026-11-19-macfuse-product/task-7-brief.md (task 4 review Minor 1) -- build-libfuse.sh shares lib/ with the osrelease shim (build/build-shim.sh), so it
+#       replaces only its own files: a foreign file survives, and a stale file inside its own include/fuse/ does not
+mkdir -p "$OURS/lib" "$OURS/include/fuse"
+echo foreign > "$OURS/lib/foreign.txt"
+echo stale > "$OURS/include/fuse/stale.h"
+echo stale > "$OURS/lib/libfuse.dylib"
+sh "$REPO_ROOT/build/build-libfuse.sh" "$SRC" "$T/stage" "$T/ex" > "$T/build.log" 2>&1 || { tail -40 "$T/build.log" >&2; echo "FAIL: build-libfuse.sh failed" >&2; exit 1; }
+[ -f "$OURS/lib/foreign.txt" ] || fail "build-libfuse.sh removed a file in lib/ that is not its own"
+[ ! -e "$OURS/include/fuse/stale.h" ] || fail "build-libfuse.sh left a stale file in its own include/fuse/"
+[ -L "$OURS/lib/libfuse.dylib" ] || fail "build-libfuse.sh left the stale regular file lib/libfuse.dylib instead of its link"
+rm -f "$OURS/lib/foreign.txt"
 NM="$CL/bin/llvm-nm"
 OTOOL="$CL/bin/llvm-otool"
 MFMOUNT=/Library/Filesystems/macfuse.fs/Contents/Frameworks/MFMount.framework/Versions/A/MFMount

@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# Task 2 fix: build/list-payload.sh fails, and leaves no listing, on a corrupt or empty payload.
+# spec: build/list-payload.sh (task 2 fix) fails, and leaves no listing, on a corrupt or empty payload.
 set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
