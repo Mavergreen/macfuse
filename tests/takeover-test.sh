@@ -118,6 +118,30 @@ mkvol "$V" 10.9.5
 mkdir -p "$V/usr/local/lib"; echo foreign > "$V/usr/local/lib/libfuse.2.dylib"
 refuses "an unaccounted libfuse.2.dylib" "  /usr/local/lib/libfuse.2.dylib" "Move them aside"
 
+if grep -q "osxfuse 3" "$T/out"; then fail "an unaccounted libfuse.2.dylib, with no osxfuse 3 installed, is blamed on osxfuse 3"; fi
+
+printf '%s\n' 'd Library/Filesystems/osxfuse.fs' 'd Library/Filesystems/osxfuse.fs/Contents' 'f Library/Filesystems/osxfuse.fs/Contents/Info.plist' \
+  'd Library/Frameworks/OSXFUSE.framework' 'd Library/Frameworks/OSXFUSE.framework/Versions' \
+  'd Library/Frameworks/OSXFUSE.framework/Versions/A' 'f Library/Frameworks/OSXFUSE.framework/Versions/A/OSXFUSE' \
+  'd usr' 'd usr/local' 'd usr/local/lib' 'f usr/local/lib/libosxfuse.2.dylib' \
+  'l usr/local/lib/libosxfuse_i64.2.dylib -> libosxfuse.2.dylib' > "$T/osxfuse3.types"
+OSXFUSE3_SAYS="osxfuse 3|  /Library/Frameworks/OSXFUSE.framework/Versions/A/OSXFUSE|  /usr/local/lib/libosxfuse.2.dylib|  /usr/local/lib/libosxfuse_i64.2.dylib|Uninstall osxfuse 3 first|pkgutil --files ID|sudo pkgutil --forget ID"
+mkvol "$V" 10.9.5
+receipt "$V" com.github.osxfuse.pkg.Core "$T/osxfuse3.types"
+old_ifs=$IFS; IFS='|'
+# shellcheck disable=SC2086
+refuses "osxfuse 3, by its receipt" $OSXFUSE3_SAYS
+IFS=$old_ifs
+[ -f "$V/usr/local/lib/libosxfuse.2.dylib" ] || fail "osxfuse 3, by its receipt: its libosxfuse.2.dylib is gone"
+mkvol "$V" 10.9.5
+receipt "$V" com.github.osxfuse.pkg.Core "$T/osxfuse3.types"
+/bin/rm -f "$T/receipts/com.github.osxfuse.pkg.Core.types"
+IFS='|'
+# shellcheck disable=SC2086
+refuses "osxfuse 3, by its osxfuse.fs alone" $OSXFUSE3_SAYS
+IFS=$old_ifs
+if grep -q "files no macFUSE installer receipt accounts for" "$T/out"; then fail "the osxfuse 3 refusal also gives the generic one"; fi
+
 mkvol "$V" 10.9.5
 mkdir -p "$V/usr/local/include"; ln -s /opt/elsewhere/fuse.h "$V/usr/local/include/fuse.h"
 refuses "a link that is not ours" "  /usr/local/include/fuse.h"

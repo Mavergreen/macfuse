@@ -60,6 +60,15 @@ If upstream macFUSE 4.x is installed, installing this takes it over:
 
 Uninstalling this product does not bring macFUSE 4 back.
 
+## Coming from osxfuse 3
+
+The installer refuses to install beside osxfuse 3 (FUSE for macOS 3.x), and changes nothing: osxfuse
+3's own `OSXFUSE.framework` and `libosxfuse` libraries are where this product puts its compatibility
+links. Uninstall osxfuse 3 first, with the Remove button in its pane in System Preferences, or by
+removing what its `com.github.osxfuse.pkg.*` receipts list (`pkgutil --files ID`) and forgetting
+them (`sudo pkgutil --forget ID`). Keep `com.github.osxfuse.pkg.SSHFS`, which is sshfs. Then run the
+installer again.
+
 ## Known limits
 
 - **Updates wait until nothing is mounted.** The installer refuses an update while a FUSE volume is

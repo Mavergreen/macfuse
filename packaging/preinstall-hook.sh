@@ -16,6 +16,22 @@ macfuse_takeover() {
   _u="$(unaccounted_paths "$ROOT")" ||
     { echo "macFUSE for Mavericks: cannot read upstream macFUSE's receipts; fix the pkgutil error above, then $_again." >&2; return 1; }
   if [ -n "$_u" ]; then
+    _o=0; osxfuse3_installed "$ROOT" || _o=$?
+    if [ "$_o" -eq 2 ]; then
+      echo "macFUSE for Mavericks: cannot read osxfuse 3's receipt; fix the pkgutil error above, then $_again." >&2
+      return 1
+    fi
+    if [ "$_o" -eq 0 ]; then
+      {
+        echo "macFUSE for Mavericks cannot install beside osxfuse 3 (FUSE for macOS 3.x), which holds these paths, where it puts links:"
+        printf '%s\n' "$_u" | sed 's|^|  /|'
+        echo "Uninstall osxfuse 3 first, with its own uninstaller (the Remove button in its pane in System Preferences),"
+        echo "or by removing the files its receipts list (pkgutil --pkgs | grep com.github.osxfuse.pkg; then for each,"
+        echo "pkgutil --files ID) and forgetting them (sudo pkgutil --forget ID). com.github.osxfuse.pkg.SSHFS is sshfs, not"
+        echo "osxfuse: keep it. Then $_again."
+      } >&2
+      return 1
+    fi
     {
       echo "macFUSE for Mavericks puts links at these paths, which hold files no macFUSE installer receipt accounts for:"
       printf '%s\n' "$_u" | sed 's|^|  /|'

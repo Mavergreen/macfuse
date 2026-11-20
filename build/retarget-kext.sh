@@ -23,18 +23,17 @@ die() { echo "retarget-kext: $*" >&2; exit 1; }
 KPI_VERSION=13.0.0
 [ -f "$TBZ" ] || die "no $TBZ"
 
-# spec: 2026-11-19-macfuse-product.md "Prerequisites" plan 1 -- the back-fill's bundle id, compatible version and install path are
-#       read from the pinned Recaulk's payload, never typed here
+# spec: 2026-11-19-macfuse-product.md "Prerequisites" plan 1 -- the back-fill's bundle id and compatible version are read from
+#       the pinned Recaulk's payload, never typed here
 set -- "$RCROOT"/Library/Extensions/*.kext
 [ $# -eq 1 ] && [ -d "$1" ] || die "$RCROOT/Library/Extensions does not hold exactly one kext (Recaulk's back-fill)"
-BF_PATH="/Library/Extensions/$(basename "$1")"
 BF_PLIST="$1/Contents/Info.plist"
 [ -f "$BF_PLIST" ] || die "no $BF_PLIST"
 BF_ID="$(plist_string "$BF_PLIST" CFBundleIdentifier)" || die "$BF_PLIST has no CFBundleIdentifier string"
 BF_VER="$(plist_string "$BF_PLIST" OSBundleCompatibleVersion)" || die "$BF_PLIST has no OSBundleCompatibleVersion string"
 case "$BF_ID" in ''|*[!A-Za-z0-9.-]*) die "the back-fill's CFBundleIdentifier '$BF_ID' is not a bundle id" ;; esac
 case "$BF_VER" in ''|*[!0-9.]*) die "the back-fill's OSBundleCompatibleVersion '$BF_VER' is not a version" ;; esac
-echo "back-fill: $BF_ID, compatible version $BF_VER, at $BF_PATH"
+echo "back-fill: $BF_ID, compatible version $BF_VER"
 
 . "$REPO_ROOT/build/msc.sh"
 BUILD="${MAVERICKS_BUILD_ROOT:-${TMPDIR:-/tmp}/mm-build}"

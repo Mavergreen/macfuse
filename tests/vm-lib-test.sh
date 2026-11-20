@@ -4,12 +4,13 @@
 #       paths, with no FUSE: (1) a failing or hung must whose command's output is redirected still prints its FAIL line on
 #       the script's real stderr, and nothing of it lands in the redirect; (2) the EXIT cleanup runs its CLEAN_HOOK to the
 #       end through a second TERM and an INT; (3) safe_rm refuses a symbolic link and leaves its target, refuses a
-#       non-directory, and removes a real directory. kextstat, kextunload, sudo, umount and diskutil are stubs on PATH
-#       that change nothing, so the cleanup can never act on this machine.
+#       non-directory, and removes a real directory; (4) its MACFUSE_PREFIX is build/lib.sh's. kextstat, kextunload, sudo,
+#       umount and diskutil are stubs on PATH that change nothing, so the cleanup can never act on this machine.
 set -u
 case "$(uname -s)" in Darwin) ;; *) echo "vm-lib-test: needs Darwin -- skipping"; exit 77 ;; esac
 HERE="$(cd "$(dirname "$0")" && pwd)"
 LIB="$HERE/vm/lib.sh"
+REPO_ROOT="$(cd "$HERE/.." && pwd)"; export REPO_ROOT
 T="$(mktemp -d "${TMPDIR:-/tmp}/vm-lib-test.XXXXXX")" || exit 1
 trap 'rm -rf "$T"' EXIT
 trap 'exit 130' INT
@@ -80,6 +81,12 @@ script rmdir "safe_rm '$T/target'"
 sh "$T/rmdir.sh" 2> "$T/rmdir.stderr"; rc=$?
 [ "$rc" -eq 0 ] && [ ! -e "$T/target" ] || bad "safe_rm of a real directory with nothing mounted did not remove it (exit $rc): $(cat "$T/rmdir.stderr")"
 [ "$failures" -eq "$f0" ] && echo "ok: safe_rm refuses a link and a file, and removes a directory"
+
+echo "== (4) the install prefix comes from build/lib.sh"
+script prefix 'printf "%s\n" "$MACFUSE_PREFIX"'
+want="$(unset MACFUSE_PREFIX; . "$REPO_ROOT/build/lib.sh" && printf '%s\n' "$MACFUSE_PREFIX")"
+got="$(unset MACFUSE_PREFIX; sh "$T/prefix.sh")"
+[ -n "$want" ] && [ "$got" = "$want" ] && echo "ok: MACFUSE_PREFIX is build/lib.sh's $want" || bad "the guest library's MACFUSE_PREFIX is '$got', not build/lib.sh's '$want'"
 
 [ "$failures" -eq 0 ] || exit 1
 echo "vm-lib-test: PASS"

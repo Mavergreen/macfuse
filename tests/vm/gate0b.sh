@@ -12,6 +12,7 @@
 #   usage: gate0b.sh BINDIR WORKDIR   (BINDIR holds passthrough3 and probe-fs; run as the guest's user)
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="${REPO_ROOT:-$(cd "$HERE/../.." && pwd)}"
 . "$HERE/lib.sh"
 cleanup_on_exit
 [ $# -eq 2 ] || { echo "usage: gate0b.sh BINDIR WORKDIR" >&2; exit 2; }

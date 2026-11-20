@@ -13,6 +13,7 @@
 #          or a hand-test box. Needs passwordless sudo. Exits 77 without MACFUSE_ALERT_PATH=1 or off 10.9.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="${REPO_ROOT:-$(cd "$HERE/../.." && pwd)}"
 . "$HERE/lib.sh"
 case "$(sw_vers -productVersion 2>/dev/null)" in 10.9*) ;; *) echo "not Mac OS X 10.9 -- skipping"; exit 77 ;; esac
 [ "${MACFUSE_ALERT_PATH:-0}" = 1 ] || { echo "alert-path: moves kexts aside; set MACFUSE_ALERT_PATH=1 on a guest where that is fine -- skipping"; exit 77; }

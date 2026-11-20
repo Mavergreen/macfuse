@@ -10,10 +10,13 @@
 #          upstream_receipt_paths ROOT          prints every path upstream's core and preferencepane receipts list; fails
 #                                               on any pkgutil failure other than an absent receipt
 #          unaccounted_paths ROOT               prints what stands where a link of ours goes and no receipt or link of ours explains
+#          osxfuse3_installed ROOT              succeeds when ROOT holds osxfuse 3's core receipt or its osxfuse.fs; returns 1
+#                                               when it holds neither, and 2 on any pkgutil failure other than an absent receipt
 #          remove_upstream_receipts ROOT AGAIN  removes what those receipts list and forgets them
 #          remove_upstream_launchd ROOT AGAIN   removes upstream's io.macfuse.* launchd plists (unloading a daemon when ROOT is empty)
 #          AGAIN completes "..., then": what to do once the cause is fixed. Messages go to stderr.
 MACFUSE_UPSTREAM_RECEIPTS="io.macfuse.installer.components.core io.macfuse.installer.components.preferencepane"
+OSXFUSE3_RECEIPT=com.github.osxfuse.pkg.Core
 
 target_macos_version() {
   awk '
@@ -95,6 +98,15 @@ unaccounted_paths() {
     !done && $0 == "//listed//" { done = 1; next }
     !done { listed[$0] = 1; next }
     !($0 in listed) { print }'
+}
+
+osxfuse3_installed() {
+  _oi="$(pkgutil --volume "$1/" --pkg-info "$OSXFUSE3_RECEIPT" 2>&1)" && return 0
+  case "$_oi" in
+    "No receipt for"*) ;;
+    *) printf '%s\n' "$_oi" >&2; return 2 ;;
+  esac
+  [ -d "$1/Library/Filesystems/osxfuse.fs" ] || return 1
 }
 
 upstream_dir_removable() {

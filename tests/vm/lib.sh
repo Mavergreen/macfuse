@@ -20,7 +20,7 @@
 #   CLEAN_HOOK                   shell text the cleanup evals after unmounting, whatever the exit status
 #   safe_rm DIR                  removes DIR, refusing (fail) when DIR is a link or not a directory, or anything is
 #                                mounted at or under it
-MACFUSE_PREFIX="${MACFUSE_PREFIX:-/usr/local/mavergreen/macfuse}"
+. "${REPO_ROOT:?tests/vm/lib.sh: set REPO_ROOT to the repo root}/build/lib.sh"
 SMOKE_LOGS="${SMOKE_LOGS:-/private/tmp/macfuse-smoke/logs}"
 FUSE_KEXTS="io.macfuse.filesystems.macfuse.21 dev.mavergreen.recaulk.kpi"
 # spec: task-11-report.md "Fix round 1" (6) -- upstream libfuse's helper.c atfork handler prints this when the process is
