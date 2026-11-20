@@ -39,3 +39,15 @@ macfuse_toolchain() {
   [ -f "$RC/lib/librecaulk.a" ] && [ -d "$RC/include/recaulk" ] || { echo "$1: Recaulk $_mt_rc lacks lib/librecaulk.a or include/recaulk" >&2; return 1; }
   unset _mt_rc
 }
+
+# spec: 2026-11-19-macfuse-product/task-8-brief.md Step 4 -- Info.plist is read with POSIX awk, never PlistBuddy or plutil (a Linux build has
+#       neither): "plist_string FILE KEY" prints the <string> value of KEY in the top-level dict of an Xcode-style XML plist (one
+#       element per line), and fails when KEY is absent there or its value is not a one-line <string>
+plist_string() {
+  awk -v k="$2" '
+    function count(s, re,  n) { n = 0; while (match(s, re)) { n++; s = substr(s, RSTART + RLENGTH) } return n }
+    want { if ($0 ~ /^[ \t]*<string>[^<]*<\/string>[ \t]*$/) { sub(/^[ \t]*<string>/, ""); sub(/<\/string>[ \t]*$/, ""); print; found = 1 } exit }
+    depth == 1 && /^[ \t]*<key>[^<]*<\/key>[ \t]*$/ { t = $0; sub(/^[ \t]*<key>/, "", t); sub(/<\/key>[ \t]*$/, "", t); if (t == k) { want = 1; next } }
+    { depth += count($0, "<dict>") - count($0, "</dict>") }
+    END { exit !found }' "$1"
+}

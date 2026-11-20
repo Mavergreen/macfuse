@@ -16,12 +16,3 @@
 #define HAVE_STRUCT_STAT_ST_ATIMENSEC 1
 #define HAVE_ICONV 1
 #define ICONV_CONST
-/* Upstream's build (_POSIX_C_SOURCE, modern SDK) has no MAP_ANONYMOUS, so fuse.c
- * turns FUSE_NODE_SLAB off and uses no mmap/munmap. The pinned Recaulk's
- * sys/mman.h defines MAP_ANONYMOUS (as MAP_ANON, which the 10.9 SDK hides under
- * _POSIX_C_SOURCE) and would turn the slab allocator on. Include it here, under
- * its guard, and take MAP_ANONYMOUS back out so fuse.c matches upstream.
- * Exit: Recaulk's sys/mman.h fix (INGREDIENTS.md; tests/libfuse-config-test.sh
- * fails once the pinned Recaulk no longer needs this). */
-#include <sys/mman.h>
-#undef MAP_ANONYMOUS
