@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>Mavergreen/shipyard"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track upstream macFUSE releases (tags are macfuse-<version>; pre-releases are not tracked).",
+      "managerFilePatterns": ["/^UPSTREAM_VERSION$/"],
+      "matchStrings": ["^(?<currentValue>\\S+)\\s*$"],
+      "depNameTemplate": "macfuse/macfuse",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^macfuse-(?<version>.+)$"
+    }
+  ]
+}

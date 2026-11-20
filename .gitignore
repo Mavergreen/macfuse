@@ -1,0 +1,7 @@
+/VERSION
+.superpowers/
+.idea/
+CMakeUserPresets.json
+/_build/
+# platform: an NFS mount sprays AppleDouble ._* files
+._*
