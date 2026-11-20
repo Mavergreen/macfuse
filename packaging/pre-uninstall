@@ -1,0 +1,9 @@
+#!/bin/sh
+# platform: macOS-only -- run by `mavergreen uninstall macfuse` on Mac OS X 10.9
+# spec: 2026-11-18-macfuse-design.md "Updates while volumes are mounted" -- refuses while FUSE volumes are mounted, then
+#       unloads the kext; the running system's business only, so another volume's uninstall has nothing to do here
+[ "${MAVERGREEN_ROOT:-/}" = / ] || exit 0
+. "$(dirname "$0")/lib-fuse-mounts.sh" || exit 1
+fuse_refuse_if_mounted "" "run: sudo mavergreen uninstall macfuse" || exit 1
+fuse_kexts_unload "run: sudo mavergreen uninstall macfuse" || exit 1
+exit 0

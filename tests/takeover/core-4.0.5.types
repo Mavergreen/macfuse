@@ -1,0 +1,120 @@
+d Library
+d Library/Filesystems
+d Library/Filesystems/macfuse.fs
+d Library/Filesystems/macfuse.fs/Contents
+d Library/Filesystems/macfuse.fs/Contents/Extensions
+l Library/Filesystems/macfuse.fs/Contents/Extensions/10.10 -> 10.9
+d Library/Filesystems/macfuse.fs/Contents/Extensions/10.11
+d Library/Filesystems/macfuse.fs/Contents/Extensions/10.11/macfuse.kext
+d Library/Filesystems/macfuse.fs/Contents/Extensions/10.11/macfuse.kext/Contents
+f Library/Filesystems/macfuse.fs/Contents/Extensions/10.11/macfuse.kext/Contents/Info.plist
+d Library/Filesystems/macfuse.fs/Contents/Extensions/10.11/macfuse.kext/Contents/MacOS
+f Library/Filesystems/macfuse.fs/Contents/Extensions/10.11/macfuse.kext/Contents/MacOS/macfuse
+d Library/Filesystems/macfuse.fs/Contents/Extensions/10.11/macfuse.kext/Contents/_CodeSignature
+f Library/Filesystems/macfuse.fs/Contents/Extensions/10.11/macfuse.kext/Contents/_CodeSignature/CodeResources
+d Library/Filesystems/macfuse.fs/Contents/Extensions/10.12
+d Library/Filesystems/macfuse.fs/Contents/Extensions/10.12/macfuse.kext
+d Library/Filesystems/macfuse.fs/Contents/Extensions/10.12/macfuse.kext/Contents
+f Library/Filesystems/macfuse.fs/Contents/Extensions/10.12/macfuse.kext/Contents/Info.plist
+d Library/Filesystems/macfuse.fs/Contents/Extensions/10.12/macfuse.kext/Contents/MacOS
+f Library/Filesystems/macfuse.fs/Contents/Extensions/10.12/macfuse.kext/Contents/MacOS/macfuse
+d Library/Filesystems/macfuse.fs/Contents/Extensions/10.12/macfuse.kext/Contents/_CodeSignature
+f Library/Filesystems/macfuse.fs/Contents/Extensions/10.12/macfuse.kext/Contents/_CodeSignature/CodeResources
+l Library/Filesystems/macfuse.fs/Contents/Extensions/10.13 -> 10.12
+l Library/Filesystems/macfuse.fs/Contents/Extensions/10.14 -> 10.12
+l Library/Filesystems/macfuse.fs/Contents/Extensions/10.15 -> 10.12
+l Library/Filesystems/macfuse.fs/Contents/Extensions/10.16 -> 11
+d Library/Filesystems/macfuse.fs/Contents/Extensions/10.9
+d Library/Filesystems/macfuse.fs/Contents/Extensions/10.9/macfuse.kext
+d Library/Filesystems/macfuse.fs/Contents/Extensions/10.9/macfuse.kext/Contents
+f Library/Filesystems/macfuse.fs/Contents/Extensions/10.9/macfuse.kext/Contents/Info.plist
+d Library/Filesystems/macfuse.fs/Contents/Extensions/10.9/macfuse.kext/Contents/MacOS
+f Library/Filesystems/macfuse.fs/Contents/Extensions/10.9/macfuse.kext/Contents/MacOS/macfuse
+d Library/Filesystems/macfuse.fs/Contents/Extensions/10.9/macfuse.kext/Contents/_CodeSignature
+f Library/Filesystems/macfuse.fs/Contents/Extensions/10.9/macfuse.kext/Contents/_CodeSignature/CodeResources
+d Library/Filesystems/macfuse.fs/Contents/Extensions/11
+d Library/Filesystems/macfuse.fs/Contents/Extensions/11/macfuse.kext
+d Library/Filesystems/macfuse.fs/Contents/Extensions/11/macfuse.kext/Contents
+f Library/Filesystems/macfuse.fs/Contents/Extensions/11/macfuse.kext/Contents/Info.plist
+d Library/Filesystems/macfuse.fs/Contents/Extensions/11/macfuse.kext/Contents/MacOS
+f Library/Filesystems/macfuse.fs/Contents/Extensions/11/macfuse.kext/Contents/MacOS/macfuse
+d Library/Filesystems/macfuse.fs/Contents/Extensions/11/macfuse.kext/Contents/_CodeSignature
+f Library/Filesystems/macfuse.fs/Contents/Extensions/11/macfuse.kext/Contents/_CodeSignature/CodeResources
+f Library/Filesystems/macfuse.fs/Contents/Info.plist
+d Library/Filesystems/macfuse.fs/Contents/Resources
+f Library/Filesystems/macfuse.fs/Contents/Resources/License.rtf
+f Library/Filesystems/macfuse.fs/Contents/Resources/Volume.icns
+f Library/Filesystems/macfuse.fs/Contents/Resources/load_macfuse
+f Library/Filesystems/macfuse.fs/Contents/Resources/mount_macfuse
+d Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app
+d Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents
+f Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/Info.plist
+d Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/MacOS
+f Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/MacOS/applet
+f Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/PkgInfo
+d Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/Resources
+d Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/Resources/Scripts
+d Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/Resources/Scripts/lib
+f Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/Resources/Scripts/lib/array.sh
+f Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/Resources/Scripts/lib/common.sh
+f Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/Resources/Scripts/lib/installer.sh
+f Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/Resources/Scripts/lib/macfuse.sh
+f Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/Resources/Scripts/lib/macos.sh
+f Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/Resources/Scripts/lib/math.sh
+f Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/Resources/Scripts/lib/string.sh
+f Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/Resources/Scripts/lib/version.sh
+f Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/Resources/Scripts/main.scpt
+f Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/Resources/Scripts/uninstall_macfuse.sh
+f Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/Resources/applet.rsrc
+d Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/_CodeSignature
+f Library/Filesystems/macfuse.fs/Contents/Resources/uninstall_macfuse.app/Contents/_CodeSignature/CodeResources
+d Library/Filesystems/macfuse.fs/Contents/_CodeSignature
+f Library/Filesystems/macfuse.fs/Contents/_CodeSignature/CodeDirectory
+f Library/Filesystems/macfuse.fs/Contents/_CodeSignature/CodeRequirements
+f Library/Filesystems/macfuse.fs/Contents/_CodeSignature/CodeRequirements-1
+f Library/Filesystems/macfuse.fs/Contents/_CodeSignature/CodeResources
+f Library/Filesystems/macfuse.fs/Contents/_CodeSignature/CodeSignature
+f Library/Filesystems/macfuse.fs/Contents/version.plist
+d Library/Frameworks
+d Library/Frameworks/OSXFUSE.framework
+d Library/Frameworks/OSXFUSE.framework/Versions
+d Library/Frameworks/OSXFUSE.framework/Versions/A
+l Library/Frameworks/OSXFUSE.framework/Versions/A/OSXFUSE -> /Library/Frameworks/macFUSE.framework/Versions/A/macFUSE
+d Library/Frameworks/macFUSE.framework
+l Library/Frameworks/macFUSE.framework/Headers -> Versions/Current/Headers
+l Library/Frameworks/macFUSE.framework/Resources -> Versions/Current/Resources
+d Library/Frameworks/macFUSE.framework/Versions
+d Library/Frameworks/macFUSE.framework/Versions/A
+d Library/Frameworks/macFUSE.framework/Versions/A/Headers
+f Library/Frameworks/macFUSE.framework/Versions/A/Headers/GMAvailability.h
+f Library/Frameworks/macFUSE.framework/Versions/A/Headers/GMFinderInfo.h
+f Library/Frameworks/macFUSE.framework/Versions/A/Headers/GMResourceFork.h
+f Library/Frameworks/macFUSE.framework/Versions/A/Headers/GMUserFileSystem.h
+f Library/Frameworks/macFUSE.framework/Versions/A/Headers/macFUSE.h
+d Library/Frameworks/macFUSE.framework/Versions/A/Resources
+f Library/Frameworks/macFUSE.framework/Versions/A/Resources/Info.plist
+d Library/Frameworks/macFUSE.framework/Versions/A/_CodeSignature
+f Library/Frameworks/macFUSE.framework/Versions/A/_CodeSignature/CodeResources
+f Library/Frameworks/macFUSE.framework/Versions/A/macFUSE
+l Library/Frameworks/macFUSE.framework/Versions/Current -> A
+l Library/Frameworks/macFUSE.framework/macFUSE -> Versions/Current/macFUSE
+d usr
+d usr/local
+d usr/local/include
+d usr/local/include/fuse
+f usr/local/include/fuse/fuse.h
+f usr/local/include/fuse/fuse_common.h
+f usr/local/include/fuse/fuse_common_compat.h
+f usr/local/include/fuse/fuse_compat.h
+f usr/local/include/fuse/fuse_lowlevel.h
+f usr/local/include/fuse/fuse_lowlevel_compat.h
+f usr/local/include/fuse/fuse_opt.h
+f usr/local/include/fuse.h
+d usr/local/lib
+f usr/local/lib/libfuse.2.dylib
+l usr/local/lib/libfuse.dylib -> libfuse.2.dylib
+f usr/local/lib/libfuse.la
+l usr/local/lib/libosxfuse.2.dylib -> libfuse.2.dylib
+l usr/local/lib/libosxfuse_i64.2.dylib -> libfuse.2.dylib
+d usr/local/lib/pkgconfig
+f usr/local/lib/pkgconfig/fuse.pc

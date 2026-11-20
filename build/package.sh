@@ -4,7 +4,8 @@
 #   usage: package.sh --stage DIR --updater-app APP --version V --out DIR
 #          Packages build/stage.sh's stage DIR, with APP (build/build-updater.sh's macfuse-updater.app) as the family
 #          updater, as OUT/macfuse-V.pkg: dev.mavergreen.base first, then dev.mavergreen.macfuse, with the 10.9.5 floor.
-#          Its preinstall refuses a volume without Recaulk at the version components/recaulk/version pins, or newer.
+#          Its preinstall refuses a volume without Recaulk at the version components/recaulk/version pins, or newer, then
+#          runs the takeover (build/lib.sh's macfuse_preinstall_hook: packaging/preinstall-hook.sh).
 #          V is UPSTREAM_VERSION with its -mavericks.N. The pkg appears in OUT only once it is made; DIR and APP are not
 #          changed. A caller without git exports SOURCE_DATE_EPOCH, which stamps every file's mtime.
 set -eu
@@ -46,7 +47,12 @@ H="$stage$MACFUSE_PREFIX/fs/Contents/Resources"
 for h in mount_macfuse load_macfuse; do
   [ -n "$(find "$H/$h" -perm 4755)" ] || die "$h is not 4755 in $stage: stage it with build/stage.sh"
 done
-rc="$(tr -d ' \t\r\n' < "$REPO_ROOT/components/recaulk/version")"
+rc="$(tr -d ' \t\r\n' < "$REPO_ROOT/components/recaulk/version")" || die "cannot read components/recaulk/version"
+case "$rc" in
+  [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9].[1-9]*) case "${rc#*.}" in *[!0-9]*) rc=bad ;; esac ;;
+  *) rc=bad ;;
+esac
+[ "$rc" != bad ] || die "components/recaulk/version is not a Recaulk YYYYMMDD.N: $(head -n 1 "$REPO_ROOT/components/recaulk/version")"
 
 mkdir -p "$out"
 out="$(cd "$out" && pwd)"
@@ -58,8 +64,9 @@ trap 'exit 143' TERM
 root="$W/root"
 # platform: cp -p keeps the set-user-ID bits, which a copy without it clears; COPYFILE_DISABLE keeps macOS's cp from writing ._* files
 COPYFILE_DISABLE=1 cp -pR "$stage" "$root"
+macfuse_preinstall_hook "$W/preinstall-hook.sh" || die "cannot compose the preinstall hook"
 sh "$SHIPYARD_SCRIPTS/stage_product.sh" --stage "$root" --product "$short" --name "Mavericks macFUSE" --version "$V" \
-  --requires "recaulk>=$rc" --updater-app "$app" --scripts-out "$W/scripts" >&2
+  --requires "recaulk>=$rc" --updater-app "$app" --preinstall-hook "$W/preinstall-hook.sh" --scripts-out "$W/scripts" >&2
 find "$root" -name '._*' -exec rm -f {} +
 mkdir -p "$W/component"
 sh "$SHIPYARD_SCRIPTS/build_component_pkg.sh" --root "$root" --identifier "$id" --version "$V" \

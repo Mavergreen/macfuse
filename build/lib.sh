@@ -13,7 +13,8 @@ MACFUSE_OSRELEASE_SHIM="$MACFUSE_PREFIX/lib/libmfosrelease.dylib"
 RECAULK_SYSTEM_DYLIB="$RECAULK_PREFIX/lib/libRecaulkSystem.dylib"
 export MACFUSE_OSRELEASE_SHIM RECAULK_SYSTEM_DYLIB
 # spec: 2026-11-19-macfuse-product/global-constraints.md "Upstream's paths" -- one line per path third-party FUSE binaries and builds
-#       have built in: the path (relative to the volume) and the tree path under MACFUSE_PREFIX its symlink names (build/stage.sh)
+#       have built in: the path (relative to the volume) and the tree path under MACFUSE_PREFIX its symlink names (build/stage.sh);
+#       the last three are upstream 4.0.5's osxfuse compatibility names, which its core receipt installs and the takeover removes
 MACFUSE_LINKS="Library/Filesystems/macfuse.fs fs
 Library/Frameworks/macFUSE.framework Frameworks/macFUSE.framework
 usr/local/lib/libfuse.2.dylib lib/libfuse.2.dylib
@@ -25,7 +26,28 @@ usr/local/lib/pkgconfig/fuse.pc lib/pkgconfig/fuse.pc
 usr/local/lib/pkgconfig/fuse3.pc lib/pkgconfig/fuse3.pc
 usr/local/include/fuse.h include/fuse.h
 usr/local/include/fuse include/fuse
-usr/local/include/fuse3 include/fuse3"
+usr/local/include/fuse3 include/fuse3
+Library/Frameworks/OSXFUSE.framework Frameworks/OSXFUSE.framework
+usr/local/lib/libosxfuse.2.dylib lib/libfuse.2.dylib
+usr/local/lib/libosxfuse_i64.2.dylib lib/libfuse.2.dylib"
+# spec: 2026-11-18-macfuse-design.md "Takeover" (maintainer, 2026-11-20: ship the osxfuse compatibility links) -- links
+#       build/stage.sh makes inside the tree, as tree path and relative target, for those names: upstream 4.0.5's
+#       OSXFUSE.framework held only Versions/A/OSXFUSE, a link to macFUSE.framework's binary; Resources, macFUSE.framework's,
+#       gives the bundle the identity artifact conformance reads (io.macfuse.frameworks.macfuse, a declared deviation)
+MACFUSE_TREE_LINKS="Frameworks/OSXFUSE.framework/Versions/A/OSXFUSE ../../../macFUSE.framework/Versions/A/macFUSE
+Frameworks/OSXFUSE.framework/Resources ../macFUSE.framework/Resources"
+
+# spec: 2026-11-19-macfuse-product/task-10-brief.md -- "macfuse_preinstall_hook OUT" writes the --preinstall-hook that
+#       build/package.sh hands stage_product.sh: MACFUSE_PREFIX and MACFUSE_LINKS as above, packaging/lib-fuse-mounts.sh,
+#       then packaging/preinstall-hook.sh, so the pkg's preinstall carries everything the takeover reads
+macfuse_preinstall_hook() {
+  case "$MACFUSE_PREFIX$MACFUSE_LINKS" in *"'"*) echo "macfuse_preinstall_hook: MACFUSE_PREFIX or MACFUSE_LINKS holds a quote" >&2; return 1 ;; esac
+  {
+    printf "MACFUSE_PREFIX='%s'\n" "$MACFUSE_PREFIX"
+    printf "MACFUSE_LINKS='%s'\n" "$MACFUSE_LINKS"
+    cat "$REPO_ROOT/packaging/lib-fuse-mounts.sh" "$REPO_ROOT/packaging/preinstall-hook.sh"
+  } > "$1"
+}
 
 # spec: 2026-11-19-macfuse-product/global-constraints.md -- UPSTREAM_VERSION holds the bare upstream version (5.5.0); it is read from the file, never spelled here
 upstream_version() { tr -d '[:space:]' < "$REPO_ROOT/UPSTREAM_VERSION"; echo; }

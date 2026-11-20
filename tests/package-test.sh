@@ -112,6 +112,18 @@ whole() { # NAME STAGE -- package STAGE and check what comes out
       grep -q "needs recaulk $rc or newer" "$comp/Scripts/preinstall" 2>/dev/null ||
         fail "$1: the preinstall does not require recaulk $rc (components/recaulk/version) or newer"
       [ ! -f "$T/list-$1.bom" ] || check_modes "$T/list-$1.bom" "$1 (BOM)"
+      grep -q "^\.$MACFUSE_PREFIX/libexec/mavergreen/pre-uninstall	100755	0/0\$" "$T/list-$1" ||
+        fail "$1: the payload has no 100755 libexec/mavergreen/pre-uninstall"
+      for l in Library/Frameworks/OSXFUSE.framework usr/local/lib/libosxfuse.2.dylib usr/local/lib/libosxfuse_i64.2.dylib \
+               "${MACFUSE_PREFIX#/}/Frameworks/OSXFUSE.framework/Versions/A/OSXFUSE"; do
+        grep -q "^\./$l	120755	0/0\$" "$T/list-$1" || fail "$1: the payload has no osxfuse compatibility link $l"
+      done
+      pre="$comp/Scripts/preinstall"
+      grep -qxF "MACFUSE_PREFIX='$MACFUSE_PREFIX'" "$pre" || fail "$1: the preinstall does not set MACFUSE_PREFIX for the takeover"
+      tk="$(grep -nx 'macfuse_takeover' "$pre" | cut -d: -f1)"
+      rt="$(grep -nF "rm -rf \"\$ROOT$MACFUSE_PREFIX\"" "$pre" | cut -d: -f1)"
+      [ -n "$tk" ] && [ -n "$rt" ] && [ "$tk" -lt "$rt" ] ||
+        fail "$1: the preinstall does not run the takeover (packaging/preinstall-hook.sh) before removing the tree"
     fi
     conforms "$T/dist-$1"
   else
@@ -124,7 +136,7 @@ fixture_inputs "$T/f"
 sh "$REPO_ROOT/build/stage.sh" "$T/f/built" "$T/f/dmg" "$T/f/k/macfuse.kext" "$T/stage" > "$T/log" 2>&1 ||
   { cat "$T/log" >&2; echo "FAIL: stage.sh refused the fixtures" >&2; exit 1; }
 whole fixture "$T/stage"
-grep -q '^installs .* usr/local/mavergreen/macfuse/mavergreen.plist$' "$T/facts" 2>/dev/null || fail "no manifest in the tree"
+grep -q "^installs .* ${MACFUSE_PREFIX#/}/mavergreen.plist\$" "$T/facts" 2>/dev/null || fail "no manifest in the tree"
 
 refused() { # MESSAGE ARGS...
   m=$1; shift
@@ -138,6 +150,19 @@ mkdir -p "$T/empty"
 refused "not a build/stage.sh stage" --stage "$T/empty" --updater-app "$T/upd/macfuse-updater.app" --version "$V" --out "$T/out"
 cp -pR "$T/stage" "$T/nosuid"; chmod 755 "$T/nosuid$MACFUSE_PREFIX/fs/Contents/Resources/mount_macfuse"
 refused "mount_macfuse is not 4755" --stage "$T/nosuid" --updater-app "$T/upd/macfuse-updater.app" --version "$V" --out "$T/out"
+# spec: build/package.sh usage -- components/recaulk/version is the YYYYMMDD.N that the preinstall requires, so an empty or malformed pin is refused
+mkdir -p "$T/repo"
+( cd "$REPO_ROOT" && cp -pR build components UPSTREAM_VERSION INGREDIENTS.md "$T/repo/" )
+[ ! -d "$REPO_ROOT/packaging" ] || cp -pR "$REPO_ROOT/packaging" "$T/repo/"
+for bad in '' 'latest' '20261120' '20261120.x' '2026112.1'; do
+  printf '%s\n' "$bad" > "$T/repo/components/recaulk/version"
+  rm -rf "$T/out"
+  if (REPO_ROOT="$T/repo"; export REPO_ROOT; package --stage "$T/stage" --updater-app "$T/upd/macfuse-updater.app" --version "$V" --out "$T/out"); then
+    fail "accepted components/recaulk/version '$bad'"
+  else
+    grep -q "components/recaulk/version" "$T/log" || { cat "$T/log" >&2; fail "refused components/recaulk/version '$bad' without naming it"; }
+  fi
+done
 
 BUILD="${MAVERICKS_BUILD_ROOT:-${TMPDIR:-/tmp}/mm-build}"
 REAL="${MACFUSE_STAGE:-$BUILD/stage}"
