@@ -2,7 +2,7 @@
  * test-device.c -- exercise the 10.9 MFMount device channel without a kext:
  * a socketpair stands in for /dev/macfuseN (message boundaries hold on
  * SOCK_DGRAM, as they do on the device). The interrupt ioctl is expected to
- * fail with ENOTTY on a socket; the kqueue wake-up must still happen.
+ * fail with EOPNOTSUPP on a socket; the kqueue wake-up must still happen.
  */
 #include <errno.h>
 #include <pthread.h>

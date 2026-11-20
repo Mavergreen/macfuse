@@ -1,7 +1,7 @@
 #!/bin/sh
 # platform: host-agnostic
 # spec: design decision A -- the C stand-in must export exactly upstream's MFMount API (the 34 _MF*/__MF*
-#       names of its x86_64 slice) and import libSystem only; API drift in a new upstream turns this red.
+#       names of its x86_64 slice) and import only from /usr/lib and /System/Library/Frameworks; API drift in a new upstream turns this red.
 # spec: INGREDIENTS.md "Conformance deviations" objc-measure -- MFMount is outside the Drydock gaps, so it must pass the
 #       default and the strict compat guard (build/compat-guard.sh) outright
 set -eu

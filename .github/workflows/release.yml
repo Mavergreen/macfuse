@@ -116,7 +116,9 @@ jobs:
 
       # spec: build/retarget-kext.sh -- it reads the kernel back-fill from the pinned Recaulk's payload root
       #       (Library/Extensions/<name>.kext), which shipyard's fetch_product_pkg.sh does not extract (it gives the
-      #       usr/local/mavergreen/recaulk tree), so the Recaulk component's whole payload is unpacked here
+      #       usr/local/mavergreen/recaulk tree), so the Recaulk component's whole payload is unpacked here. A per-repo
+      #       workaround: a developer, on 10.9 or a modern Mac, reproduces this root by hand. Exit: shipyard's queued
+      #       "fetch_product_pkg.sh can hand back a component's whole payload root", which replaces these lines
       - name: The pinned Recaulk's payload root, and upstream's kext retargeted for 10.9
         run: |
           set -eu
@@ -127,7 +129,7 @@ jobs:
           stevedore="$(sh "$SHIPYARD_SCRIPTS/fetch_stevedore.sh")"
           rm -rf "$b/recaulk-pkg/expanded" "$b/recaulk-root"
           "$stevedore" expand "$pkg" "$b/recaulk-pkg/expanded" > /dev/null
-          info="$(grep -l "identifier=\"$id\"" "$b"/recaulk-pkg/expanded/*/PackageInfo)"
+          info="$(grep -l "identifier=\"$id\"" "$b"/recaulk-pkg/expanded/*/PackageInfo || true)"
           [ "$(printf '%s\n' "$info" | grep -c .)" -eq 1 ] || { echo "::error::recaulk-$rc.pkg does not hold exactly one $id component"; exit 1; }
           payload="$(dirname "$info")/Payload"
           mkdir "$b/recaulk-root"

@@ -11,8 +11,10 @@ name: pins-bot
 #         pushes to the branch with a token of the Mavergreen pins-bot GitHub App (org variable PINS_BOT_CLIENT_ID,
 #         org secret PINS_BOT_PRIVATE_KEY; minted for this repository with contents: write alone). A push made with
 #         GITHUB_TOKEN starts no workflow, and a run it dispatches does not count for the PR's required check; the
-#         App's push starts release.yml like any push, and that run's `build` job is main's required check on the new
-#         head, so a patch bump automerges on green. Hence no dispatch step. The job's own GITHUB_TOKEN reads only.
+#         App's push starts release.yml's pull_request run (its push trigger ignores renovate/**), and that run's
+#         `required (release)` is the PR's required check on the new head. Hence no dispatch step. An upstream bump
+#         still never automerges: it needs a person to refresh the upstream-measured goldens (INGREDIENTS.md). The
+#         job's own GITHUB_TOKEN reads only.
 #       renovate.json's gitIgnoredAuthors keeps this bot's commit from marking the branch as edited by someone else.
 
 on:

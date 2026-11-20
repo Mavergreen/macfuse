@@ -1,11 +1,12 @@
 /*
- * device.c -- spike replacement for MFMount's Swift implementation, 10.9 only.
+ * device.c -- the C stand-in this product ships for MFMount's Swift
+ * implementation, 10.9 only.
  *
  * macFUSE 5.5.0's MFMount (macfuse/mount 395aa1b) is Swift that needs the
  * Foundation, Dispatch, OSLog, System and XPC Swift overlays plus the
  * swift-atomics and swift-collections packages. The Mavergreen Swift
  * toolchain has none of them, so the framework cannot be built for 10.9 as
- * written (see findings, Task 5a).
+ * written.
  *
  * The kernel backend only uses MFMount's device-channel half: libfuse execs
  * mount_macfuse, receives the /dev/macfuseN fd, wraps it with

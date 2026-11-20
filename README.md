@@ -15,9 +15,10 @@ So far it has been tested only on Mac OS X 10.9.5 (build 13F1911), in a virtual 
 
 ## Install
 
-1. Install [Recaulk](https://github.com/Mavergreen/recaulk/releases), at the version this release
-   names or newer. The installer refuses to go on without it: the kernel extension links Recaulk's
-   kernel back-fill, and the mount helper loads its system library.
+1. Install [Recaulk](https://github.com/Mavergreen/recaulk/releases) first; its latest release
+   works. The installer refuses to go on without Recaulk, and names the version it needs when the
+   installed one is older: the kernel extension links Recaulk's kernel back-fill, and the mount
+   helper loads its system library.
 2. Install `macfuse-<version>.pkg` from this repo's
    [releases](https://github.com/Mavergreen/macfuse/releases). It installs only on Mac OS X 10.9;
    on a newer macOS, install [macFUSE](https://macfuse.github.io) itself.
@@ -46,7 +47,8 @@ If upstream macFUSE 4.x is installed, installing this takes it over:
 - It unloads upstream's kernel extension, removes exactly the files upstream's core and preference
   pane receipts list, forgets those two receipts, and removes upstream's `io.macfuse.*` launch agents
   and daemons. The macFUSE preference pane goes with them.
-- It leaves sshfs alone: its binary and its receipt stay, and it keeps working against this libfuse 2.
+- It leaves sshfs alone: its binary and its receipt stay, and it keeps working against this libfuse 2
+  when run in the foreground (below).
 - The osxfuse compatibility names that macFUSE 4 installed (`/Library/Frameworks/OSXFUSE.framework`,
   `/usr/local/lib/libosxfuse.2.dylib` and `libosxfuse_i64.2.dylib`) come back as links to this
   product's framework and libfuse 2.
@@ -78,7 +80,7 @@ installer again.
   missing, mounting fails and upstream's notice says "Unsupported macOS Version" and that the installed
   macFUSE is too old. Reinstall the product. If Recaulk's kernel extension is missing instead, the mount
   fails with "the file system is not available" and no notice.
-- **`mount_macfuse` crashes if run directly.** Upstream's `mount_macfuse` crashes when
+- **`mount_macfuse` can crash when run by hand.** Upstream's `mount_macfuse` crashes when
   `_FUSE_DAEMON_PATH` is unset and the mount fails. libfuse always sets it, so file systems are not
   affected.
 - **Change notifications are unreliable for changes made outside the mount.** A kqueue watcher on a
