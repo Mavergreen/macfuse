@@ -30,3 +30,26 @@ It differs from upstream in four ways:
 - It logs to stderr only, never `os_log`; upstream also writes to stderr.
 - Its signal sources hold a strong reference to the channel (upstream's are weak), so a channel
   released without `MFChannelClose` leaks its descriptor and armed sources. libfuse always closes first.
+
+## macFUSE.framework is Objective-C only
+
+`macFUSE.framework` is built from upstream's Objective-C sources at upstream's install name,
+versions and bundle identifier, with upstream's headers and module map, and exports the same 46
+Objective-C classes and constants as upstream's x86_64 slice (`tests/framework-exports-test.sh`).
+Upstream also compiles one Swift file, `NSFileManager.swift`, which adds 16 `FileAttributeKey`
+properties (`.flags`, `.accessDate`, `.systemVolumeName` and so on) for Swift callers. That Swift-only
+extension is absent until the Swift overlays are ported to 10.9; the `kGMUserFileSystem*Key`
+constants it wraps are all present. The framework links no `/usr/lib/swift` library.
+
+It differs from upstream in three more ways:
+
+- It has no DTrace probes: upstream's `macfuse_objc:::delegate-entry` probe is compiled out.
+- Upstream's headers use annotations newer than the 10.9 SDK (nullability macros, `NSFileAttributeKey`,
+  generic collections). The framework ships those headers unchanged, so a file system built against
+  it with the 10.9 SDK needs what `build/build-framework.sh` uses to build `tests/framework-fs`:
+  `framework/sdk109-prelude.h` and copies of the headers without the collections' type arguments.
+  Building with a newer SDK and `-mmacosx-version-min=10.9` needs neither.
+- The family's strict Objective-C check (`build/compat-guard.sh`) cannot measure it yet: Drydock's
+  analyzer does not classify `objc_loadWeak`, does not follow an `objc_msgSend` pointer copied between
+  registers, and does not resolve absolute install names such as `/usr/local/lib/libfuse.2.dylib`.
+  The default compat guard passes.

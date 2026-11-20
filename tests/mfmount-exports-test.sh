@@ -2,6 +2,8 @@
 # platform: host-agnostic
 # spec: design decision A -- the C stand-in must export exactly upstream's MFMount API (the 34 _MF*/__MF*
 #       names of its x86_64 slice) and import libSystem only; API drift in a new upstream turns this red.
+# spec: INGREDIENTS.md "Conformance deviations" objc-measure -- MFMount is outside the Drydock gaps, so it must pass the
+#       default and the strict compat guard (build/compat-guard.sh) outright
 set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "$HERE/.." && pwd)}"
@@ -43,6 +45,9 @@ NM="$CL/bin/llvm-nm" sh "$REPO_ROOT/build/recaulk-unexported.sh" "$BUILD/recaulk
 "$CL/bin/llvm-nm" -gUj "$OURS" | LC_ALL=C sort > "$T/all-exports.txt"
 LC_ALL=C comm -12 "$T/recaulk-names.txt" "$T/all-exports.txt" > "$T/leaked.txt"
 [ ! -s "$T/leaked.txt" ] || { cat "$T/leaked.txt" >&2; fail "exports Recaulk names"; }
+
+sh "$REPO_ROOT/build/compat-guard.sh" --default "$OURS" || fail "the default compat guard failed on MFMount"
+sh "$REPO_ROOT/build/compat-guard.sh" "$OURS" || fail "the strict compat guard failed on MFMount"
 
 [ "$fails" -eq 0 ] || exit 1
 echo "mfmount-exports-test: PASS"

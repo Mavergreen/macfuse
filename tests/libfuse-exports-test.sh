@@ -3,12 +3,15 @@
 # spec: 2026-11-18-macfuse-spike-findings.md "libfuse 2 and 3" -- the 10.9 libfuse 2 and 3 must be drop-in for upstream's: the same exported
 #       names as upstream's x86_64 slices (207 and 225), the same install names and versions, the same headers and
 #       pkg-config files, and only the imports the 10.9 build needs; no Recaulk name leaks out as an export.
+# spec: INGREDIENTS.md "Conformance deviations" objc-measure -- each must pass the default compat guard; the strict one is
+#       recorded and fails only outside the declared Drydock gaps (tests/lib/strict-measure.sh)
 set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "$HERE/.." && pwd)}"
 export REPO_ROOT
 . "$REPO_ROOT/build/lib.sh"
 . "$REPO_ROOT/build/msc.sh"
+. "$REPO_ROOT/tests/lib/strict-measure.sh"
 fails=0
 fail() { printf 'FAIL: %s\n' "$*" >&2; fails=$((fails + 1)); }
 UP="${MACFUSE_DMG_ROOT:-}/usr/local"
@@ -78,6 +81,9 @@ for spec in "libfuse.2.dylib 207 12.0.0 12.9.0" "libfuse3.4.dylib 225 4.0.0 4.0.
 
   "$OTOOL" -l "$ours" | awk '/cmd LC_ID_DYLIB/ { id = 1 } id && /current version/ { c = $3 } id && /compatibility version/ { k = $3; id = 0 } END { print k, c }' > "$T/ver.txt"
   [ "$(cat "$T/ver.txt")" = "$compat $cur" ] || fail "$lib: LC_ID_DYLIB compat/current are $(cat "$T/ver.txt"), not $compat $cur"
+
+  sh "$REPO_ROOT/build/compat-guard.sh" --default "$ours" || fail "$lib: the default compat guard failed"
+  strict_measure "$ours" "$T/strict.txt" || fail "$lib: the strict compat guard failed"
 done
 
 for l in libfuse.dylib:libfuse.2.dylib libfuse3.dylib:libfuse3.4.dylib; do
