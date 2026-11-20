@@ -13,7 +13,7 @@ SRC="${MFMOUNT_SRC:-$BUILD/src}"
 if [ "$(uname -s)" != Darwin ] || [ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" = 1 ]; then
   echo "SKIP: this host cannot execute x86_64 (not Darwin, or Apple silicon)"; exit 77
 fi
-[ -f "$SRC/mount/Mount/Bridge/Trampoline.c" ] || { echo "SKIP: no fetched mount sources at $SRC/mount"; exit 77; }
+[ -f "$SRC/mount/Mount/Bridge/Trampoline.c" ] || { echo "FAIL: no fetched mount sources at $SRC/mount (build/fetch-sources.sh)" >&2; exit 1; }
 
 T="$(mktemp -d "${TMPDIR:-/tmp}/mfmount-device-test.XXXXXX")"
 trap 'rm -rf "$T"' EXIT

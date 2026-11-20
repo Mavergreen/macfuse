@@ -14,7 +14,7 @@ BUILD="${MAVERICKS_BUILD_ROOT:-${TMPDIR:-/tmp}/mm-build}"
 SRC="${MFMOUNT_SRC:-$BUILD/src}"
 UP="${MACFUSE_DMG_ROOT:-}/Library/Filesystems/macfuse.fs/Contents/Frameworks/MFMount.framework/Versions/A/MFMount"
 if [ -z "${MACFUSE_DMG_ROOT:-}" ] || [ ! -f "$UP" ]; then echo "SKIP: MACFUSE_DMG_ROOT unset or lacks upstream's MFMount"; exit 77; fi
-[ -f "$SRC/mount/Mount/Bridge/Trampoline.c" ] || { echo "SKIP: no fetched mount sources at $SRC/mount"; exit 77; }
+[ -f "$SRC/mount/Mount/Bridge/Trampoline.c" ] || { echo "FAIL: no fetched mount sources at $SRC/mount (build/fetch-sources.sh)" >&2; exit 1; }
 
 T="$(mktemp -d "${TMPDIR:-/tmp}/mfmount-exports-test.XXXXXX")"
 trap 'rm -rf "$T"' EXIT

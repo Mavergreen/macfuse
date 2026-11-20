@@ -6,6 +6,7 @@ Everything baked into macFUSE for Mavericks, where it is pinned and what moves i
 |---|---|---|---|
 | macFUSE | `UPSTREAM_VERSION` (bare upstream release; the tag is `macfuse-<version>`) | `github-releases` on `macfuse/macfuse`, `extractVersionTemplate` `^macfuse-(?<version>.+)$` | a new upstream release, `<version>-mavericks.1` |
 | macFUSE source commits (Library-2, Library-3, Mount, Framework) | `components/macfuse-sources/pins` (a commit and its tarball's SHA-256 each) | they move with `UPSTREAM_VERSION`: the pins bot (`.github/workflows/pins-bot.yml`, `scripts/pin-sources.sh`) writes them on Renovate's branch from the release tag's gitlinks | the bumped release's commits |
+| libfuse 2 `MAP_ANONYMOUS` workaround (per-repo back-fill): `libfuse/config/lib2/config.h` includes `<sys/mman.h>` and then undefines `MAP_ANONYMOUS`, because the pinned Recaulk's `sys/mman.h` defines it under `_POSIX_C_SOURCE` (as `MAP_ANON`, which the 10.9 SDK hides there), which would turn on `fuse.c`'s slab allocator that upstream's build leaves off | `libfuse/config/lib2/config.h` | `tests/libfuse-config-test.sh` probes the pinned Recaulk's header and fails once the workaround is no longer needed | exit: Recaulk's `sys/mman.h` fix (plan 1); then delete the two lines |
 
 No upstream release notes beyond the link: `build/upstream-release-notes-url.sh` links `https://github.com/macfuse/macfuse/releases/tag/macfuse-<version>`.
 

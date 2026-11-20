@@ -17,21 +17,14 @@ SRC=$1
 STAGE=$2
 MOUNT="$SRC/mount/Mount"
 [ -f "$MOUNT/Bridge/Trampoline.c" ] && [ -f "$MOUNT/MFMount.h" ] || { echo "build-mfmount: no upstream mount sources under $SRC/mount" >&2; exit 1; }
-BUILD="${MAVERICKS_BUILD_ROOT:-${TMPDIR:-/tmp}/mm-build}"
+macfuse_toolchain build-mfmount || exit 1
 INSTALL_DIR=/Library/Filesystems/macfuse.fs/Contents/Frameworks
 FW="$STAGE$MACFUSE_PREFIX/fs/Contents/Frameworks/MFMount.framework"
-mkdir -p "$BUILD" "$(dirname "$FW")"
+mkdir -p "$(dirname "$FW")"
 W="$(mktemp -d "$BUILD/mfmount.XXXXXX")"
 trap 'rm -rf "$W"' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-
-CL="$(sh "$SHIPYARD_SCRIPTS/fetch_clang22.sh" "$REPO_ROOT/components/clang22")" || { echo "build-mfmount: no clang22" >&2; exit 1; }
-SDK="$(sh "$SHIPYARD_SCRIPTS/fetch_sdk.sh")" || { echo "build-mfmount: no 10.9 SDK" >&2; exit 1; }
-RC_VERSION="$(tr -d ' \t\r\n' < "$REPO_ROOT/components/recaulk/version")"
-sh "$SHIPYARD_SCRIPTS/fetch_product_pkg.sh" recaulk "$RC_VERSION" "$BUILD/recaulk-tree" > /dev/null || { echo "build-mfmount: no Recaulk $RC_VERSION" >&2; exit 1; }
-RC="$BUILD/recaulk-tree"
-[ -f "$RC/lib/librecaulk.a" ] && [ -d "$RC/include/recaulk" ] || { echo "build-mfmount: Recaulk $RC_VERSION lacks lib/librecaulk.a or include/recaulk" >&2; exit 1; }
 
 # platform: --no-default-config, because clang22's clang.cfg links its own librecaulk.a copy; the inputs are
 #           exactly the 10.9 SDK, the pinned Recaulk headers and its whole librecaulk.a, last on the link

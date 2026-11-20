@@ -1,0 +1,10 @@
+prefix=@prefix@
+includedir=${prefix}/include
+libdir=${prefix}/lib
+
+Name: fuse3
+Description: Filesystem in Userspace
+Version: @VERSION@
+Libs: -L${libdir} -lfuse3 -lpthread
+Libs.private: -ldl -liconv -licucore
+Cflags: -I${includedir}/fuse3
