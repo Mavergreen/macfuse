@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: README.md "MFMount is a C stand-in" -- the device-channel cases (socketpair standing in for /dev/macfuseN) run only
+# spec: DETAILS.md "MFMount is a C stand-in" -- the device-channel cases (socketpair standing in for /dev/macfuseN) run only
 #       on a host that executes x86_64 (the 10.9 acceptance job, .github/workflows/on-mavericks.yml); this Mac, Apple silicon
 #       or not Darwin, SKIPs.
 set -eu

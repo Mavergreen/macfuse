@@ -156,7 +156,7 @@ for e in hello3 hello2; do
   is_mounted "$W/mnt/bad" && fail "$e with an unknown option left a volume mounted"
 done
 ok "hello3 and hello2 refuse an unknown option by name, and mount nothing"
-# spec: README.md "Known limits" -- mount_macfuse itself, as libfuse would exec it, but with no daemon behind the
+# spec: DETAILS.md "Known limits" -- mount_macfuse itself, as libfuse would exec it, but with no daemon behind the
 #       socket: upstream's mount_macfuse has no unknown-option message (it splits -o with strtok against its own table and
 #       ignores what it does not know), so the option is not refused here; what must hold is that the run ends, non-zero,
 #       saying why, with no volume and no hang -- mount(2) gives up when no daemon answers INIT (EAGAIN, about 50 s)
@@ -173,7 +173,7 @@ echo "== mount_macfuse's failure path, once"
 #       -- with libfuse's environment but a closed _FUSE_COMMFD, the adapted
 #       setuid mount_macfuse passes its 10.9 gate, runs load_macfuse, opens the device, then fails to send the fd and exits
 #       through its CF exit handler (a distributed notification); it must say so and exit non-zero, without crashing or
-#       hanging. _FUSE_DAEMON_PATH is set as libfuse sets it: without it upstream's handler crashes (README.md "Known limits").
+#       hanging. _FUSE_DAEMON_PATH is set as libfuse sets it: without it upstream's handler crashes (DETAILS.md "Known limits").
 before="$(crash_reports mount_macfuse | wc -l)"
 mkdir -p "$W/mnt/alert"
 track_mount "$W/mnt/alert"

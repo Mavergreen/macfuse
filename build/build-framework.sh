@@ -1,12 +1,12 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: maintainer, 2026-11-19 (README.md "macFUSE.framework is Objective-C only") -- macFUSE.framework is built from
+# spec: maintainer, 2026-11-19 (DETAILS.md "macFUSE.framework is Objective-C only") -- macFUSE.framework is built from
 #       upstream's Objective-C only, since the family's Swift lacks the Foundation overlay. What upstream's
 #       Framework.xcodeproj and its 5.5.0 binary say:
 #   - Swift: Framework/Extensions/Foundation/NSFileManager.swift is the only Swift file. It extends
 #     FileAttributeKey with 16 @_alwaysEmitIntoClient properties, so upstream's binary exports for it only
 #     their 16 property descriptors (_$sSo18NSFileAttributeKeya7macFUSEE...MV) and links 8 /usr/lib/swift
-#     libraries, libc++ and an LC_RPATH /usr/lib/swift for them. All three are absent here (README.md).
+#     libraries, libc++ and an LC_RPATH /usr/lib/swift for them. All three are absent here (DETAILS.md).
 #   - Sources (PBXSourcesBuildPhase): GMDirectoryEntry.m, GMFinderInfo.m, GMResourceFork.m,
 #     GMUserFileSystem.m, GMDataBackedFileDelegate.m, macfuse_objc_dtrace.d and NSFileManager.swift.
 #     Public headers: GMAvailability.h, GMDirectoryEntry.h, GMFinderInfo.h, GMResourceFork.h,
@@ -37,7 +37,7 @@ STAGE=$2
 EX=$3
 FS="$SRC/framework/Framework"
 [ -f "$FS/GMUserFileSystem.m" ] && [ -f "$FS/macFUSE.h" ] || { echo "build-framework: no upstream Framework sources under $SRC/framework" >&2; exit 1; }
-# spec: README.md "macFUSE.framework is Objective-C only" -- it drops one Swift file; another would drop more than FileAttributeKey
+# spec: DETAILS.md "macFUSE.framework is Objective-C only" -- it drops one Swift file; another would drop more than FileAttributeKey
 swift="$(cd "$SRC/framework" && find . -name '*.swift' | LC_ALL=C sort)"
 [ "$swift" = ./Framework/Extensions/Foundation/NSFileManager.swift ] || { echo "build-framework: upstream's Swift is not just NSFileManager.swift: $swift" >&2; exit 1; }
 TREE="$STAGE$MACFUSE_PREFIX"

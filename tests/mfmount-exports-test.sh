@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: README.md "MFMount is a C stand-in" -- the C stand-in must export exactly upstream's MFMount API (the 34 _MF*/__MF*
+# spec: DETAILS.md "MFMount is a C stand-in" -- the C stand-in must export exactly upstream's MFMount API (the 34 _MF*/__MF*
 #       names of its x86_64 slice) and import only from /usr/lib and /System/Library/Frameworks; API drift in a new
 #       upstream turns this red.
 # spec: INGREDIENTS.md "Conformance deviations" objc-measure -- MFMount is outside the Drydock gaps, so it must pass the

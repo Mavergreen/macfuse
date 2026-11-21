@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: macOS-only -- installs pkgs over a mounted FUSE volume on a Mac OS X 10.9 guest (the acceptance job's Scenario B)
-# spec: .github/workflows/on-mavericks.yml scenario-b and README.md "Known limits" (upgrading uses the takeover's
+# spec: .github/workflows/on-mavericks.yml scenario-b and DETAILS.md "Known limits" (upgrading uses the takeover's
 #       mounted-volume refusal and kext unload) -- with OLD_PKG installed and a volume mounted from it, the
 #       run's pkg is refused, saying to unmount, and changes nothing; unmounted, it installs, the old kext is unloaded, and the
 #       next mount loads the kext anew at the run's upstream version. Every wait is bounded; on any exit it unmounts and

@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: macOS-only -- installs pkgs and mounts sshfs on a Mac OS X 10.9 guest (the acceptance job's Scenario C)
-# spec: .github/workflows/on-mavericks.yml scenario-c and README.md "Coming from macFUSE 4" -- on a guest where upstream
+# spec: .github/workflows/on-mavericks.yml scenario-c and DETAILS.md "Coming from macFUSE 4" -- on a guest where upstream
 #       macFUSE 4.0.5 (core and preferencepane receipts) and an sshfs are installed: install Recaulk, then the run's pkg;
 #       4.0.5's two receipts are gone and nothing they listed is left except our links; the sshfs binary is byte-identical
 #       and its receipt remains; an io.macfuse.installer.components.sshfs receipt -- upstream's own sshfs component, which no
@@ -39,7 +39,7 @@ pkgutil --files "$UP_CORE" > "$SMOKE_LOGS/core-files.txt" || fail "pkgutil --fil
 pkgutil --files "$UP_PREF" > "$SMOKE_LOGS/pref-files.txt" || fail "pkgutil --files $UP_PREF"
 [ -x "$SSHFS" ] || fail "no $SSHFS"
 sshfs_sum="$(shasum -a 256 "$SSHFS" | awk '{ print $1 }')"
-# spec: README.md "Coming from macFUSE 4" -- whatever receipt installed sshfs (macFUSE's components.sshfs,
+# spec: DETAILS.md "Coming from macFUSE 4" -- whatever receipt installed sshfs (macFUSE's components.sshfs,
 #       osxfuse's com.github.osxfuse.pkg.SSHFS) is left alone; a hand-copied sshfs has none, and then there is none to keep
 sshfs_receipts="$(pkgutil --file-info "$SSHFS" 2>/dev/null | awk '/^pkgid:/ { print $2 }' | sort -u)"
 echo "sshfs $sshfs_sum, receipts: ${sshfs_receipts:-none}"

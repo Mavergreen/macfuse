@@ -19,7 +19,7 @@ trap 'rm -rf "$T"' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-# spec: README.md "Install" -- each path third-party binaries and builds have built in, and the tree file it must resolve to,
+# spec: DETAILS.md "Install" -- each path third-party binaries and builds have built in, and the tree file it must resolve to,
 #       kept apart from build/lib.sh's MACFUSE_LINKS so that drift there is caught; the last three are upstream 4.0.5's osxfuse
 #       compatibility names (maintainer, 2026-11-20)
 UPSTREAM_LINKS="Library/Filesystems/macfuse.fs fs

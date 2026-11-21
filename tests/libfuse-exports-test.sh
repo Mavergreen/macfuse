@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: README.md "Coming from macFUSE 4" -- the 10.9 libfuse 2 and 3 must be drop-in for upstream's: the same exported
+# spec: DETAILS.md "Coming from macFUSE 4" -- the 10.9 libfuse 2 and 3 must be drop-in for upstream's: the same exported
 #       names as upstream's x86_64 slices (207 and 225), the same install names and versions, the same headers and
 #       pkg-config files, and only the imports the 10.9 build needs; no Recaulk name leaks out as an export.
 # spec: INGREDIENTS.md "Conformance deviations" objc-measure -- each must pass the default compat guard; the strict one is

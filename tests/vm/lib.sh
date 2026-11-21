@@ -24,7 +24,7 @@
 . "${REPO_ROOT:?tests/vm/lib.sh: set REPO_ROOT to the repo root}/build/lib.sh"
 SMOKE_LOGS="${SMOKE_LOGS:-/private/tmp/macfuse-smoke/logs}"
 FUSE_KEXTS="io.macfuse.filesystems.macfuse.21 dev.mavergreen.recaulk.kpi"
-# spec: README.md "Coming from macFUSE 4" -- upstream libfuse's helper.c atfork handler prints this when the process is
+# spec: DETAILS.md "Coming from macFUSE 4" -- upstream libfuse's helper.c atfork handler prints this when the process is
 #       threaded at fork(2); the only fork is fuse_darwin_mount's double fork to exec mount_macfuse, made from a loop
 #       worker in the multithreaded loop: once per mount with the default loop, never with -s
 FORK_WARNING="fuse: forking a threaded process is unsafe, the child may crash or deadlock"

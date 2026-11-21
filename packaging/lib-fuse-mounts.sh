@@ -78,7 +78,7 @@ upstream_receipt_paths() {
   done
 }
 
-# spec: README.md "Coming from macFUSE 4" -- the installer never overwrites a file it cannot account for: every file, link or
+# spec: DETAILS.md "Coming from macFUSE 4" -- the installer never overwrites a file it cannot account for: every file, link or
 #       directory at, or inside a real directory at, a path a link of ours occupies, that no upstream receipt lists and that is
 #       not already our link into MACFUSE_PREFIX
 unaccounted_paths() {
@@ -114,7 +114,7 @@ upstream_dir_removable() {
   printf '%s\n' "$MACFUSE_LINKS" | awk -v d="$1" '$1 == d || index(d, $1 "/") == 1 { found = 1 } END { exit !found }'
 }
 
-# spec: README.md "Coming from macFUSE 4" -- exactly the receipts' files and links, so nothing we did not install is
+# spec: DETAILS.md "Coming from macFUSE 4" -- exactly the receipts' files and links, so nothing we did not install is
 #       deleted; then their directories
 #       that are left empty, inside a bundle or at or under a path a link of ours occupies, so that no real directory is
 #       left where the payload puts a link; then the two receipts, forgotten
@@ -150,7 +150,7 @@ remove_upstream_receipts() {
   done
 }
 
-# spec: README.md "Coming from macFUSE 4" -- upstream's own updater or launch jobs, if present, which would otherwise offer
+# spec: DETAILS.md "Coming from macFUSE 4" -- upstream's own updater or launch jobs, if present, which would otherwise offer
 #       upstream's releases
 remove_upstream_launchd() {
   for _j in "$1"/Library/LaunchAgents/io.macfuse.*.plist "$1"/Library/LaunchDaemons/io.macfuse.*.plist; do

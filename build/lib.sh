@@ -14,7 +14,7 @@ export REPO_ROOT MACFUSE_PREFIX RECAULK_PREFIX
 MACFUSE_OSRELEASE_SHIM="$MACFUSE_PREFIX/lib/libmfosrelease.dylib"
 RECAULK_SYSTEM_DYLIB="$RECAULK_PREFIX/lib/libRecaulkSystem.dylib"
 export MACFUSE_OSRELEASE_SHIM RECAULK_SYSTEM_DYLIB
-# spec: README.md "Install" -- one line per path third-party FUSE binaries and builds
+# spec: DETAILS.md "Install" -- one line per path third-party FUSE binaries and builds
 #       have built in: the path (relative to the volume) and the tree path under MACFUSE_PREFIX its symlink names (build/stage.sh);
 #       the last three are upstream 4.0.5's osxfuse compatibility names, which its core receipt installs and the takeover removes
 MACFUSE_LINKS="Library/Filesystems/macfuse.fs fs

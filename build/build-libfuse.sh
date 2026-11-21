@@ -40,7 +40,7 @@ CC="$CL/bin/clang"
 TREE="$STAGE$MACFUSE_PREFIX"
 LIBDIR="$TREE/lib"
 INCDIR="$TREE/include"
-# spec: README.md "Install" -- install names and the .pc/.la paths stay upstream's, so third-party binaries and builds find them;
+# spec: DETAILS.md "Install" -- install names and the .pc/.la paths stay upstream's, so third-party binaries and builds find them;
 #       /usr/local links into the tree
 UPSTREAM_PREFIX=/usr/local
 W="$(mktemp -d "$BUILD/libfuse.XXXXXX")"

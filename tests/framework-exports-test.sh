@@ -1,6 +1,6 @@
 #!/bin/sh
 # platform: host-agnostic
-# spec: README.md "macFUSE.framework is Objective-C only" -- macFUSE.framework is built from upstream's Objective-C only: it must export exactly the
+# spec: DETAILS.md "macFUSE.framework is Objective-C only" -- macFUSE.framework is built from upstream's Objective-C only: it must export exactly the
 #       non-Swift names of upstream's x86_64 slice, at upstream's install name, versions and bundle identity, with
 #       upstream's headers and module map, link libfuse 2 as upstream's does and no /usr/lib/swift library, and pass
 #       the default compat guard; the strict one (build/compat-guard.sh) is recorded and fails only outside the Drydock
