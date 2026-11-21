@@ -9,7 +9,7 @@ name: on-mavericks
 #       helper records; it moves kexts aside, so it runs only on a disposable guest. Any panic, hang or skip (77) fails.
 #       release.yml calls it, and its publish job needs it.
 # spec: components/recaulk/version (ruling, 2026-11-20) -- the RecaulkKPI.kext the kext links
-#       comes from the pinned Recaulk release's pkg, so this job fails until a Recaulk release ships it (20261120.2 does not)
+#       comes from the pinned Recaulk release's pkg, which each guest installs before the run's pkg
 on:
   workflow_call:
     inputs:
