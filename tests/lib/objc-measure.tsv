@@ -1,4 +1,3 @@
-macFUSE	1	objc-compat: unclassified-objc-runtime-import: _objc_loadWeak
 macFUSE	1	objc-compat: indirect-objc-entry: objc entry point in r12 is called through where another path left a different value
 macFUSE	1	objc-compat: indirect-objc-entry: objc entry point in r12 is read other than to call through it (a spill, a copy or an escape)
 libfuse.2.dylib	1	objc-compat: escaping-dependency: /Library/Filesystems/macfuse.fs/Contents/Frameworks/MFMount.framework/Versions/A/MFMount: a non-system path outside the shipped root

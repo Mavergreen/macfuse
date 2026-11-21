@@ -36,10 +36,11 @@ I2='objc-compat: indirect-objc-entry: objc entry point in r12 is read other than
 EL='objc-compat: escaping-dependency: /usr/local/lib/libfuse.2.dylib: a non-system path outside the shipped root'
 EM='objc-compat: escaping-dependency: /Library/Filesystems/macfuse.fs/Contents/Frameworks/MFMount.framework/Versions/A/MFMount: a non-system path outside the shipped root'
 case_ macFUSE clean pass 0 'compat guard: 1 binaries clean'
-case_ macFUSE today pass 4 "$LW" "$I1" "$I2" "$CM"
+case_ macFUSE today pass 4 "$I1" "$I2" "$CM"
+case_ macFUSE loadweak-again fail 4 "$LW" "$I1" "$I2" "$CM"
 case_ macFUSE latent-libfuse-dependency fail 4 "$EL" "$CM"
-case_ macFUSE one-gap-closed fail 4 "$LW" "$I1" "$CM"
-case_ macFUSE extra-indirect-site fail 4 "$LW" "$I1" "$I2" "$I1" "$CM"
+case_ macFUSE one-gap-closed fail 4 "$I1" "$CM"
+case_ macFUSE extra-indirect-site fail 4 "$I1" "$I2" "$I1" "$CM"
 SP='objc-compat: indirect-objc-entry: objc entry point spilled to a frame slot that a frame address escaped on some path may reach'
 R13='objc-compat: indirect-objc-entry: objc entry point in r13 is spilled where another path left a different value'
 RBP='objc-compat: indirect-objc-entry: objc entry point spilled to [rbp-7696] is read other than by a reload into a register'
@@ -56,11 +57,11 @@ mm_case 155 today pass "$R13" "$RBP"
 mm_case 154 one-spill-fewer fail "$R13" "$RBP"
 mm_case 156 one-spill-more fail "$R13" "$RBP"
 mm_case 155 r13-gap-closed fail "$RBP"
-case_ macFUSE mount_macfuse-s-spill fail 4 "$LW" "$I1" "$I2" "$SP" "$CM"
+case_ macFUSE mount_macfuse-s-spill fail 4 "$I1" "$I2" "$SP" "$CM"
 case_ macFUSE other-register fail 4 'objc-compat: indirect-objc-entry: objc entry point in rbx is called through where another path left a different value' "$CM"
 case_ macFUSE new-absolute-dependency fail 4 "$EL" 'objc-compat: escaping-dependency: /usr/local/lib/libfoo.dylib: a non-system path outside the shipped root' "$CM"
 case_ macFUSE libfuse-s-dependency fail 4 "$EM" "$CM"
-case_ macFUSE other-import fail 4 "$LW" 'objc-compat: unclassified-objc-runtime-import: _objc_setAssociatedObject' "$CM"
+case_ macFUSE other-import fail 4 "$I1" "$I2" 'objc-compat: unclassified-objc-runtime-import: _objc_setAssociatedObject' "$CM"
 case_ libfuse.2.dylib today pass 4 "$EM" "$CM"
 case_ libfuse3.4.dylib today pass 4 "$EM" "$CM"
 case_ libfuse.2.dylib macFUSE-s-loadweak fail 4 "$EM" "$LW" "$CM"
@@ -71,13 +72,13 @@ case_ macFUSE no-finding fail 4 "$CM"
 case_ macFUSE old-drydock fail 4 "compat-guard: shipyard at S pins Drydock 'v0.4.0'; the strict guard needs Drydock v0.5.0 or later (shipyard v1.0.736 or later)"
 case_ macFUSE blocking fail 1 'compat guard: FAIL selector'
 echo 0.0.1 > "$T/UPSTREAM_VERSION"
-case_ macFUSE today-for-another-upstream fail 4 "$LW" "$I1" "$I2" "$CM"
+case_ macFUSE today-for-another-upstream fail 4 "$I1" "$I2" "$CM"
 grep -q 'refresh for upstream 0.0.1' "$T/err" ||
   { echo "FAIL: a mismatched upstream does not say 'refresh for upstream 0.0.1'" >&2; fails=$((fails + 1)); }
 case_ macFUSE clean-for-another-upstream pass 0 'compat guard: 1 binaries clean'
 cp "$REAL/UPSTREAM_VERSION" "$T/UPSTREAM_VERSION"
 grep -v '^- objc-measure:macFUSE:' "$REAL/INGREDIENTS.md" > "$T/INGREDIENTS.md"
-case_ macFUSE undeclared fail 4 "$LW" "$I1" "$I2" "$CM"
+case_ macFUSE undeclared fail 4 "$I1" "$I2" "$CM"
 case_ libfuse.2.dylib others-still-declared pass 4 "$EM" "$CM"
 [ "$fails" -eq 0 ] || exit 1
 echo "strict-measure-test: PASS (27 cases)"

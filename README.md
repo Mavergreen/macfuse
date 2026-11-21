@@ -140,8 +140,8 @@ It differs from upstream in three more ways:
   `framework/sdk109-prelude.h` and copies of the headers without the collections' type arguments.
   Building with a newer SDK and `-mmacosx-version-min=10.9` needs neither.
 - The family's strict Objective-C check (`build/compat-guard.sh`) cannot measure it yet: Drydock's
-  analyzer does not classify `objc_loadWeak`, does not follow an `objc_msgSend` pointer copied between
-  registers, and does not resolve absolute install names such as `/usr/local/lib/libfuse.2.dylib`.
+  analyzer does not follow an `objc_msgSend` pointer copied between registers, and the check does not
+  yet resolve absolute install names such as `/usr/local/lib/libfuse.2.dylib`.
   The default compat guard passes.
 
 ## License
