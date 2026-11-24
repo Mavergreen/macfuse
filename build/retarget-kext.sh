@@ -6,7 +6,8 @@
 #       executes, upstream's binary.
 #   usage: retarget-kext.sh TBZ RECAULK_ROOT OUTDIR
 #          TBZ is upstream's macfuse-<UPSTREAM_VERSION>-debug.tbz. RECAULK_ROOT is an extracted Recaulk payload root, holding
-#          exactly one Library/Extensions/<name>.kext, Recaulk's kernel back-fill. Writes OUTDIR/macfuse.kext (directories and
+#          Recaulk's kernel back-fill, the one Library/Extensions/<name>.kext whose CFBundleIdentifier is
+#          dev.mavergreen.recaulk.kpi (other Recaulk kexts beside it, such as its boot-time kernel fixes, are ignored). Writes OUTDIR/macfuse.kext (directories and
 #          the executable 755, Info.plist 644, no ._* files), replacing only that; on any error leaves an earlier one as it was.
 #          The plist keeps CFBundleIdentifier and CFBundleVersion, sets every com.apple.kpi.* in OSBundleLibraries to 13.0.0,
 #          drops com.apple.kpi.private, and adds the back-fill's CFBundleIdentifier at its OSBundleCompatibleVersion.
@@ -25,11 +26,17 @@ KPI_VERSION=13.0.0
 
 # spec: components/recaulk/version -- the back-fill's bundle id and compatible version are read from the pinned Recaulk's
 #       payload, never typed here, so a Recaulk bump carries them
-set -- "$RCROOT"/Library/Extensions/*.kext
-[ $# -eq 1 ] && [ -d "$1" ] || die "$RCROOT/Library/Extensions does not hold exactly one kext (Recaulk's back-fill)"
-BF_PLIST="$1/Contents/Info.plist"
-[ -f "$BF_PLIST" ] || die "no $BF_PLIST"
-BF_ID="$(plist_string "$BF_PLIST" CFBundleIdentifier)" || die "$BF_PLIST has no CFBundleIdentifier string"
+#       The back-fill is chosen by its bundle id, which macfuse.kext links and tests/vm/lib.sh loads; Recaulk ships other
+#       kexts beside it (RecaulkKernelFixes.kext, from 20261124.1).
+BF_ID=dev.mavergreen.recaulk.kpi
+BF_PLIST=""
+for k in "$RCROOT"/Library/Extensions/*.kext; do
+  [ -f "$k/Contents/Info.plist" ] || continue
+  [ "$(plist_string "$k/Contents/Info.plist" CFBundleIdentifier || :)" = "$BF_ID" ] || continue
+  [ -z "$BF_PLIST" ] || die "$RCROOT/Library/Extensions holds more than one $BF_ID kext"
+  BF_PLIST="$k/Contents/Info.plist"
+done
+[ -n "$BF_PLIST" ] || die "$RCROOT/Library/Extensions holds no $BF_ID kext (Recaulk's back-fill)"
 BF_VER="$(plist_string "$BF_PLIST" OSBundleCompatibleVersion)" || die "$BF_PLIST has no OSBundleCompatibleVersion string"
 case "$BF_ID" in ''|*[!A-Za-z0-9.-]*) die "the back-fill's CFBundleIdentifier '$BF_ID' is not a bundle id" ;; esac
 case "$BF_VER" in ''|*[!0-9.]*) die "the back-fill's OSBundleCompatibleVersion '$BF_VER' is not a version" ;; esac
