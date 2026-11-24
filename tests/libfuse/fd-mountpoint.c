@@ -25,6 +25,16 @@
  * way fuse_session_unmount must then have closed the adopted descriptor and
  * unmounted nothing.
  *
+ * Four more cases check how the single-threaded loop waits on an adopted
+ * device, which it does in 1 s slices (libfuse/patches/library3). A wrapper
+ * around MFChannelWaitForNextMessage, interposed by dyld, counts the slices
+ * the daemon enters and, in one case, makes them blind. A request that was
+ * queued before the loop looked is read without entering a slice; one sent
+ * 1.3 s after INIT, past a slice, is answered; and when the kqueue a slice
+ * waits on never reports (blind, as it may not for a dead device) the owner's
+ * close still ends the loop, through the poll that follows a slice.
+ * The fourth, below, is fuse_main -s -o remember=60.
+ *
  * Two more cases send the SIGTERM from outside while the daemon is blocked
  * waiting for a request, as an operator's kill does: the loop is
  * fuse_session_loop in one, fuse_main -s (which uses it) in the other, and
@@ -75,11 +85,30 @@ enum {
 	DAEMON_BAD_FD_TAKEN = 16,
 	DAEMON_GARBAGE_ADOPTED = 17,
 	DAEMON_MAIN_RETURNED = 18,
+	DAEMON_SLICES_WRONG = 19,
+	DAEMON_NO_INTERPOSE = 20,
 };
 
-enum ending { BY_CLOSE, BY_SIGTERM, BY_SENT_SIGTERM, BY_SENT_SIGTERM_MAIN };
+enum ending {
+	BY_CLOSE, BY_SIGTERM, BY_SENT_SIGTERM, BY_SENT_SIGTERM_MAIN, BY_SENT_SIGTERM_REMEMBER,
+	BY_FAST_PATH, BY_LATE_REQUEST, BY_BLIND_CLOSE
+};
 
 static enum ending ending;
+
+/*
+ * tests/libfuse/interpose-wait.c, a dylib dyld interposes into this process
+ * (an interpose section in the executable itself is not applied on 10.9),
+ * counts the waits libfuse's single-threaded loop makes on an adopted device:
+ * timeout 0 is the single poll, anything else a slice. blind makes a slice
+ * sleep and report nothing, and delay_probe holds back the next single poll
+ * while the test sends a request. Only the daemon child uses it.
+ */
+struct wait_state {
+	volatile int wait_calls, slice_waits, blind, delay_probe;
+};
+static struct wait_state *ws;
+static int verdict;
 
 static void refuse_fork(void)
 {
@@ -94,6 +123,10 @@ static void on_init(void *userdata, struct fuse_conn_info *conn)
 	(void)userdata;
 	(void)conn;
 	fprintf(stderr, "daemon: init callback ran\n");
+	if (ws != NULL) {
+		ws->slice_waits = 0;
+		ws->delay_probe = ending == BY_FAST_PATH;
+	}
 }
 
 static void on_statfs(fuse_req_t req, fuse_ino_t ino)
@@ -103,6 +136,14 @@ static void on_statfs(fuse_req_t req, fuse_ino_t ino)
 	(void)ino;
 	memset(&st, 0, sizeof st);
 	fuse_reply_statfs(req, &st);
+	if (ending == BY_FAST_PATH && ws->slice_waits != 0) {
+		fprintf(stderr, "daemon: %d slices were entered for a request that was queued\n", ws->slice_waits);
+		verdict = DAEMON_SLICES_WRONG;
+	}
+	if (ending == BY_LATE_REQUEST && ws->slice_waits < 2) {
+		fprintf(stderr, "daemon: %d slices were entered before a request 1.3 s late\n", ws->slice_waits);
+		verdict = DAEMON_SLICES_WRONG;
+	}
 	if (ending == BY_SIGTERM)
 		raise(SIGTERM);
 }
@@ -129,10 +170,11 @@ static int move_signals_off_this_thread(void)
 }
 
 /* fuse_main -s on /dev/fd/N: the daemon of the last case */
-static int daemon_fuse_main(int fd)
+static int daemon_fuse_main(int fd, int remember)
 {
 	char mp[32];
-	char *argv[] = { "fd-mountpoint", "-s", "-f", mp, NULL };
+	char *argv[] = { "fd-mountpoint", "-s", "-f", mp, NULL, NULL, NULL };
+	int argc = 4;
 	struct fuse_operations ops;
 	int rc;
 
@@ -141,7 +183,11 @@ static int daemon_fuse_main(int fd)
 	pthread_atfork(refuse_fork, NULL, NULL);
 	if (move_signals_off_this_thread() != 0)
 		return DAEMON_NO_HANDLERS;
-	rc = fuse_main(4, argv, &ops, NULL);
+	if (remember) {
+		argv[argc++] = "-o";
+		argv[argc++] = "remember=60";
+	}
+	rc = fuse_main(argc, argv, &ops, NULL);
 	if (rc != 8) {
 		fprintf(stderr, "daemon: fuse_main returned %d, not 8\n", rc);
 		return DAEMON_MAIN_RETURNED;
@@ -166,21 +212,30 @@ static int daemon_main(int fd, enum ending how)
 	ops.init = on_init;
 	ops.statfs = on_statfs;
 	ending = how;
-	if (how == BY_SENT_SIGTERM_MAIN)
-		return daemon_fuse_main(fd);
+	if (how == BY_SENT_SIGTERM_MAIN || how == BY_SENT_SIGTERM_REMEMBER)
+		return daemon_fuse_main(fd, how == BY_SENT_SIGTERM_REMEMBER);
+	ws = dlsym(RTLD_DEFAULT, "mf_wait_state");
+	if (ws == NULL && (how == BY_FAST_PATH || how == BY_LATE_REQUEST || how == BY_BLIND_CLOSE))
+		return DAEMON_NO_INTERPOSE;
+	if (ws != NULL)
+		ws->blind = how == BY_BLIND_CLOSE;
 	snprintf(mp, sizeof mp, "/dev/fd/%d", fd);
 	pthread_atfork(refuse_fork, NULL, NULL);
 	se = fuse_session_new(&args, &ops, sizeof ops, NULL);
 	if (se == NULL)
 		return DAEMON_NO_SESSION;
-	if (how != BY_CLOSE && fuse_set_signal_handlers(se) != 0)
+	if ((how == BY_SIGTERM || how == BY_SENT_SIGTERM) && fuse_set_signal_handlers(se) != 0)
 		return DAEMON_NO_HANDLERS;
 	if (how == BY_SENT_SIGTERM && move_signals_off_this_thread() != 0)
 		return DAEMON_NO_HANDLERS;
 	if (fuse_session_mount(se, mp) != 0)
 		return DAEMON_MOUNT_FAILED;
 	rc = fuse_session_loop(se);
-	if (how != BY_CLOSE) {
+	if (ws != NULL && ws->wait_calls == 0 && (how == BY_FAST_PATH || how == BY_LATE_REQUEST || how == BY_BLIND_CLOSE))
+		return DAEMON_NO_INTERPOSE;
+	if (verdict != 0)
+		return verdict;
+	if (how == BY_SIGTERM || how == BY_SENT_SIGTERM) {
 		fuse_remove_signal_handlers(se);
 		if (rc == SIGTERM)
 			rc = 0;
@@ -231,6 +286,8 @@ static const char *daemon_said(int st)
 	case DAEMON_MOUNT_FAILED: return "fuse_session_mount refused the /dev/fd/N mountpoint";
 	case DAEMON_FD_LEFT_OPEN: return "fuse_session_unmount left the adopted descriptor open";
 	case DAEMON_LOOP_FAILED: return "fuse_session_loop returned an error";
+	case DAEMON_SLICES_WRONG: return "the loop entered the wrong number of 1 s slices";
+	case DAEMON_NO_INTERPOSE: return "the interposed wait was never called, so the case proved nothing";
 	case DAEMON_MAIN_RETURNED: return "fuse_main did not return 8 after SIGTERM";
 	case DAEMON_BAD_FD_TAKEN: return "fuse_session_mount took /dev/fd/N for a closed N";
 	case DAEMON_GARBAGE_ADOPTED: return "fuse_session_mount adopted N from /dev/fd/N with more after it";
@@ -245,7 +302,11 @@ static int scenario(enum ending how)
 	const char *name = how == BY_CLOSE ? "the device closed" :
 			   how == BY_SIGTERM ? "SIGTERM" :
 			   how == BY_SENT_SIGTERM ? "a SIGTERM sent to fuse_session_loop" :
-						    "a SIGTERM sent to fuse_main -s";
+			   how == BY_SENT_SIGTERM_MAIN ? "a SIGTERM sent to fuse_main -s" :
+			   how == BY_SENT_SIGTERM_REMEMBER ? "a SIGTERM sent to fuse_main -s -o remember=60" :
+			   how == BY_FAST_PATH ? "a request queued before the loop looked" :
+			   how == BY_LATE_REQUEST ? "a request 1.3 s after INIT" :
+						    "the device closed, with a blind slice wait";
 	int sv[2], st;
 	pid_t pid;
 	struct {
@@ -299,7 +360,7 @@ static int scenario(enum ending how)
 	}
 	printf("ok: the daemon answered FUSE_INIT on /dev/fd/N (protocol %u.%u)\n", io->major, io->minor);
 
-	if (how == BY_SENT_SIGTERM || how == BY_SENT_SIGTERM_MAIN) {
+	if (how == BY_SENT_SIGTERM || how == BY_SENT_SIGTERM_MAIN || how == BY_SENT_SIGTERM_REMEMBER) {
 		/* the daemon is idle, waiting for a request: signal it from here */
 		usleep(500000);
 		if (kill(pid, SIGTERM) != 0)
@@ -311,8 +372,12 @@ static int scenario(enum ending how)
 		printf("ok: after %s the daemon ended within 5 s, left the mount alone, and ran no helper\n", name);
 		return 0;
 	}
-	if (how == BY_SIGTERM) {
-		/* the daemon raises SIGTERM as it answers */
+	if (how == BY_SIGTERM || how == BY_FAST_PATH || how == BY_LATE_REQUEST) {
+		/* BY_SIGTERM: the daemon raises SIGTERM as it answers */
+		if (how == BY_FAST_PATH)
+			usleep(100000);	/* inside the daemon's 300 ms hold on its first poll */
+		if (how == BY_LATE_REQUEST)
+			usleep(1300000);
 		memset(&sreq, 0, sizeof sreq);
 		sreq.len = sizeof sreq;
 		sreq.opcode = FUSE_STATFS;
@@ -334,6 +399,8 @@ static int scenario(enum ending how)
 	} else {
 		close(sv[0]);
 	}
+	if (how == BY_FAST_PATH || how == BY_LATE_REQUEST)
+		close(sv[0]);
 	st = reap(pid, 10);
 	if (how == BY_SIGTERM)
 		close(sv[0]);
@@ -419,7 +486,9 @@ int main(int argc, char **argv)
 	    realpath(argv[1], want) == NULL || strcmp(got, want) != 0)
 		FAIL("libfuse 3 was loaded from %s, not %s", info.dli_fname ? info.dli_fname : "?", argv[1]);
 	if (mount_checks() != 0 || scenario(BY_CLOSE) != 0 || scenario(BY_SIGTERM) != 0 ||
-	    scenario(BY_SENT_SIGTERM) != 0 || scenario(BY_SENT_SIGTERM_MAIN) != 0)
+	    scenario(BY_SENT_SIGTERM) != 0 || scenario(BY_SENT_SIGTERM_MAIN) != 0 ||
+	    scenario(BY_SENT_SIGTERM_REMEMBER) != 0 || scenario(BY_FAST_PATH) != 0 || scenario(BY_LATE_REQUEST) != 0 ||
+	    scenario(BY_BLIND_CLOSE) != 0)
 		return 1;
 	printf("PASS\n");
 	return 0;

@@ -10,7 +10,7 @@
 +		if (mfch != NULL) {
 +			unsigned ms = timeout * 1000;
 +
-+			/* a signal's wake-up can be lost: look again */
++			/* in slices, as fuse_session_wait_adopted (fuse_i.h) */
 +			if (se->mfch_adopted && ms > FUSE_ADOPTED_WAIT_MS)
 +				ms = FUSE_ADOPTED_WAIT_MS;
 +			res = MFChannelWaitForNextMessage(mfch, ms);
@@ -25,7 +25,7 @@
 +			curr_time(&now);
 +#ifdef __APPLE__
 +			/* only the shortened wait of an adopted device ends early */
-+			if (now.tv_sec < next_clean)
++			if (se->mfch_adopted && now.tv_sec < next_clean)
 +				continue;
 +#endif
  			timeout = fuse_clean_cache(f);
@@ -44,40 +44,64 @@
  
 --- a/lib/fuse_i.h
 +++ b/lib/fuse_i.h
-@@ -489,6 +489,38 @@
+@@ -489,6 +489,62 @@
   * @return 0 on success, or a negative errno value on failure
   */
  int fuse_session_mfch(struct fuse_session *se, MFChannelRef *mfchp);
 +
 +/*
 + * The longest an adopted /dev/fd/N device is waited on before the session is
-+ * asked whether it should exit, in milliseconds. A signal's handler only sets
-+ * a flag, and the wake-up that the channel's signal sources send can reach the
++ * asked whether it should exit, in milliseconds. A signal's handler only notes
++ * the signal, and the wake-up the channel's signal sources send can reach the
 + * waiting thread before the handler has run, or never reach a blocking read:
 + * nothing else would end a single-threaded loop. Not unmounting, which would
 + * close the device, is the point of an adopted mount, so the loop looks again.
++ * Used by fuse_session_wait_adopted() for fuse_session_loop (fuse_loop.c) and
++ * by fuse_session_loop_remember (fuse.c), which waits the same way itself.
++ *
++ * There is no self-pipe to wake the wait instead: the wait is MFMount's own
++ * kqueue, which watches the device descriptor and nothing else, a handler has
++ * nowhere safe to write to it, and a slice costs one wake-up per idle second.
 + */
 +#define FUSE_ADOPTED_WAIT_MS 1000
 +
 +/*
-+ * Waits on an adopted device for the next request, for at most
-+ * FUSE_ADOPTED_WAIT_MS at a time. Returns 1 when a request can be read, 0 once
-+ * the session has exited, or -1 when the channel failed (the caller's read
-+ * reports why).
++ * Waits on an adopted device for the next request. Returns 1 when a request
++ * can be read, 0 once the session has exited, or -1 when the channel failed
++ * (the caller's read reports why).
++ *
++ * A single poll comes first, so a busy daemon pays one system call per request
++ * and enters the slices only when it is idle. Each slice that ends with nothing
++ * to read is followed by another poll(2) of the device: the owner's unmount
++ * ends the loop through whatever tells the device is dead, the kqueue the
++ * slice waits on or, should the kernel extension not report it there, poll(2).
++ * errno is saved at once, because later calls change it.
 + */
 +static inline int fuse_session_wait_adopted(struct fuse_session *se,
 +					    MFChannelRef mfch)
 +{
-+	for (;;) {
-+		int res = MFChannelWaitForNextMessage(mfch,
-+						      FUSE_ADOPTED_WAIT_MS);
++	int res = MFChannelWaitForNextMessage(mfch, 0);
++	int err = errno;
 +
++	for (;;) {
++		if (res == 1)
++			return 1;
++		if (res == -1 && err != EINTR)
++			return -1;
++
++		res = MFChannelWaitForNextMessage(mfch, FUSE_ADOPTED_WAIT_MS);
++		err = errno;
 +		if (res == 1)
 +			return 1;
 +		if (fuse_session_exited(se))
 +			return 0;
-+		if (res == -1 && errno != EINTR)
++		if (res == -1 && err != EINTR)
 +			return -1;
++		if (res == 0) {
++			/* the slice ran out: ask poll(2), which is not the kqueue */
++			res = MFChannelWaitForNextMessage(mfch, 0);
++			err = errno;
++		}
 +	}
 +}
  #endif
@@ -85,7 +109,7 @@
  /* ----------------------------------------------------------- *
 --- a/lib/fuse_loop.c
 +++ b/lib/fuse_loop.c
-@@ -24,6 +24,22 @@
+@@ -24,6 +24,23 @@
  	};
  
  	while (!fuse_session_exited(se)) {
@@ -95,7 +119,8 @@
 +
 +			/*
 +			 * The blocking read below is not woken by a signal
-+			 * that the handler only noted: wait in slices.
++			 * that the handler only noted: wait in slices, as
++			 * fuse_session_loop_remember does (fuse_i.h).
 +			 */
 +			if (fuse_session_mfch(se, &mfch) == 0 &&
 +			    mfch != NULL &&

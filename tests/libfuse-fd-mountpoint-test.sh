@@ -35,7 +35,10 @@ SDK="$(sh "$SHIPYARD_SCRIPTS/fetch_sdk.sh")"
 "$CL/bin/clang" --no-default-config --target=x86_64-apple-macos10.9 -isysroot "$SDK" -O2 -g -Wall -Wno-unused-parameter \
   -D_FILE_OFFSET_BITS=64 -DFUSE_DARWIN_ENABLE_EXTENSIONS=0 -I"$T/stage$MACFUSE_PREFIX/include/fuse3" -I"$SRC/library3/include" \
   -fuse-ld=lld "$REPO_ROOT/tests/libfuse/fd-mountpoint.c" -L"$LIBDIR" -lfuse3.4 -o "$T/fd-mountpoint"
-DYLD_LIBRARY_PATH="$LIBDIR" DYLD_FRAMEWORK_PATH="$FWDIR" "$T/fd-mountpoint" "$LIBDIR/libfuse3.4.dylib" > "$T/out.txt" 2>&1 ||
+# spec: tests/libfuse/interpose-wait.c -- counts and bends the single-threaded loop's waits on the adopted device
+"$CL/bin/clang" --no-default-config --target=x86_64-apple-macos10.9 -isysroot "$SDK" -O2 -g -Wall -dynamiclib \
+  -fuse-ld=lld "$REPO_ROOT/tests/libfuse/interpose-wait.c" -F"$FWDIR" -framework MFMount -o "$T/interpose-wait.dylib"
+DYLD_INSERT_LIBRARIES="$T/interpose-wait.dylib" DYLD_LIBRARY_PATH="$LIBDIR" DYLD_FRAMEWORK_PATH="$FWDIR" "$T/fd-mountpoint" "$LIBDIR/libfuse3.4.dylib" > "$T/out.txt" 2>&1 ||
   { cat "$T/out.txt" >&2; echo "FAIL: fd-mountpoint" >&2; exit 1; }
 cat "$T/out.txt"
 grep -q '^PASS$' "$T/out.txt" || { echo "FAIL: no PASS line" >&2; exit 1; }

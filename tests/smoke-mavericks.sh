@@ -287,6 +287,18 @@ grep -q '^DAEMON-GONE-WHILE-MOUNTED$' "$RMLOG3" || fail "the single-threaded dae
 grep -q '^DAEMON-EXIT 8$' "$RMLOG3" || fail "passthrough3 -s did not exit 8, fuse_main's code for a signalled loop: $(cat "$RMLOG3")"
 ok "SIGTERM ended nobody's single-threaded passthrough3 (exit 8) within 10 s with the volume still mounted, and root unmounted it"
 
+echo "== root's unmount ends a single-threaded /dev/fd/N daemon"
+# spec: DETAILS.md "A mount made for you: /dev/fd/N" -- the owner's unmount ends the daemon, as an unmount always does.
+#       The single-threaded loop waits in 1 s slices on the device's kqueue, then polls it (fuse_session_wait_adopted in
+#       libfuse/patches/library3): neither is proven to report a dead device on this kernel extension until this runs,
+#       the same shape as the multithreaded round above. The daemon must exit 0, which rm_finish allows 60 s for.
+RMLOG4="$SMOKE_LOGS/rootmount-unmount-st.log"
+rm_start "$RMLOG4" -s
+must 30 "stopping rootmount" sudo -n kill -TERM "$RMPID"
+rm_finish "$RMLOG4" "root's unmount of the single-threaded daemon's volume"
+grep -q '^DAEMON-EXIT 0$' "$RMLOG4" || fail "passthrough3 -s on /dev/fd/N did not exit 0 after root's unmount: $(cat "$RMLOG4")"
+ok "root's unmount ended nobody's single-threaded passthrough3 (exit 0)"
+
 echo "== nothing left mounted"
 for m in $ALL_MOUNTS; do is_mounted "$m" && fail "$m is still mounted"; done
 mount | grep -q -e '(macfuse' -e '(osxfuse' && fail "a FUSE volume is still mounted"
