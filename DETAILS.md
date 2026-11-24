@@ -110,7 +110,11 @@ once a daemon has answered the kernel's `INIT`. So the process must start the fi
 With `/dev/fd/N`, libfuse:
 
 - never runs `mount_macfuse`, and ignores mount options such as `allow_other` or `volname`, which belong to the mount
-  that was already made;
+  that was already made. The options the kernel enforces, such as `allow_other` and `default_permissions`, are the
+  mounting process's job: it must pass them to `mount_macfuse`;
+- refuses `/dev/fd/N` when N is not open, and takes `/dev/fd/N` with anything after N as an ordinary mount point. Like
+  Linux libfuse, it does not check that N is a device: a descriptor of anything else gives the file system nothing it
+  did not already hold;
 - serves descriptor N, still waiting until after `fuse_daemonize()` to start, as it does for every mount;
 - leaves the mount to the process that made it: `fuse_session_unmount()` closes the descriptor and unmounts nothing,
   as Linux libfuse does;

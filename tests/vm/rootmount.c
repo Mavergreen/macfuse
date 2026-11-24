@@ -15,7 +15,8 @@
  * forced, waits up to 30 s for the daemon, and prints "UNMOUNTED" (or why
  * not) and "DAEMON-EXIT <exit code>", or "DAEMON-SIGNAL <signal>". A daemon
  * that exits while MNT is mounted is reported as "DAEMON-GONE-WHILE-MOUNTED".
- * Exits 0 only when MNT was mounted and unmounted and the daemon exited 0.
+ * Exits 0 when MNT was mounted and unmounted and the daemon exited on its own,
+ * whatever its exit code, which the caller judges.
  * Root never reads the file system. Every wait is bounded.
  */
 #include <errno.h>
@@ -261,7 +262,7 @@ int main(int argc, char **argv)
 		printf("DAEMON-SIGNAL %d\n", WTERMSIG(st));
 	else
 		printf("rootmount: no exit status from the daemon\n");
-	if (st == -1 || !WIFEXITED(st) || WEXITSTATUS(st) != 0)
+	if (st == -1 || !WIFEXITED(st))
 		rc = 1;
 	if (!reap(mpid, 10, &w)) {
 		kill(mpid, SIGTERM);

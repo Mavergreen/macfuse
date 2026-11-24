@@ -7,9 +7,9 @@
 #       Gate 0b probes (tests/vm/gate0b.sh), a macFUSE.framework file system, a binary built against upstream 4.0.5, an
 #       unknown option given to libfuse and to mount_macfuse itself, mount_macfuse's failure and exit-notification path once,
 #       a kill -9'd daemon's volume cleared by umount, a mount root makes with allow_other and hands to an unprivileged
-#       passthrough3 through libfuse's /dev/fd/N mountpoint (tests/vm/rootmount.c), and the MFMount device, libfuse
-#       /dev/fd/N and osrelease shim tests. Any panic, hang or
-#       new crash report fails it. On any exit it unmounts what it mounted and kills its daemons; on a failing one it also
+#       passthrough3 through libfuse's /dev/fd/N mountpoint (tests/vm/rootmount.c), stopped once by root's unmount and
+#       once by SIGTERM to the daemon, and the MFMount device, libfuse /dev/fd/N and osrelease shim tests. Any panic,
+#       hang or new crash report fails it. On any exit it unmounts what it mounted and kills its daemons; on a failing one it also
 #       unloads the kexts it loaded (tests/vm/lib.sh cleanup_on_exit).
 #   usage: smoke-mavericks.sh VERSION BINDIR
 #          VERSION is the run's version (the pkg installed). BINDIR holds hello2, hello3, passthrough3 and framework-fs
@@ -204,43 +204,68 @@ ok "a killed daemon's volume answers at once and umount clears it"
 echo "== root mounts with allow_other; an unprivileged daemon serves it through /dev/fd/N"
 # spec: DETAILS.md "A mount made for you: /dev/fd/N" -- root (tests/vm/rootmount.c) runs mount_macfuse with allow_other
 #       and hands the device to passthrough3 running as nobody, whose libfuse must not run mount_macfuse itself; this
-#       user, neither root nor nobody, writes and reads through the mount, and the file lands owned by nobody. rootmount
-#       bounds itself (300 s), since this user cannot kill a root process; the cleanup asks sudo to stop it.
+#       user, neither root nor nobody, writes and reads through the mount, and the file lands owned by nobody. sudo and
+#       rootmount run as root, so this user's kill -0 cannot see them (EPERM): ps -p does. rootmount bounds itself
+#       (300 s), and the cleanup asks sudo to stop it from the moment it starts.
 RS="$W/rootmount-scratch"
 safe_rm "$RS"
 mkdir -p "$RS" "$W/mnt/rm" || fail "mkdir $RS $W/mnt/rm"
 chmod 1777 "$RS" || fail "chmod 1777 $RS"
 is_mounted "$W/mnt/rm" && fail "$W/mnt/rm is already mounted before rootmount starts"
 track_mount "$W/mnt/rm"
+running() { ps -p "$1" > /dev/null 2>&1; }
+rm_start() {  # LOG: starts rootmount, waits for READY; sets RM (sudo's pid), RMPID (rootmount's) and RMD (the daemon's)
+  sudo -n "$BIN/rootmount" "$W/mnt/rm" nobody "$BIN/passthrough3" -f > "$1" 2>&1 &
+  RM=$!
+  CLEAN_HOOK="bounded 30 sudo -n pkill -TERM -f '^$BIN/rootmount ' > /dev/null 2>&1"
+  _i=0
+  while [ "$_i" -lt 90 ] && ! grep -q '^READY ' "$1"; do
+    running "$RM" || fail "rootmount exited before its mount was ready: $(cat "$1")"
+    sleep 1; _i=$((_i + 1))
+  done
+  grep -q '^READY ' "$1" || fail "rootmount's mount was not ready within 90 s: $(cat "$1")"
+  RMPID="$(awk '/^READY / { print $2 }' "$1")"; RMD="$(awk '/^READY / { print $3 }' "$1")"
+  wait_mounted "$W/mnt/rm" 10
+  [ "$(ps -o user= -p "$RMD" | tr -d ' ')" = nobody ] || fail "rootmount's daemon (pid $RMD) is not running as nobody"
+}
+rm_finish() {  # LOG WHAT: waits for rootmount to unmount and exit
+  _i=0
+  while [ "$_i" -lt 60 ] && running "$RM"; do sleep 1; _i=$((_i + 1)); done
+  running "$RM" && fail "rootmount did not finish within 60 s of $2: $(cat "$1")"
+  wait "$RM"; _rc=$?
+  CLEAN_HOOK=""
+  [ "$_rc" -eq 0 ] || fail "rootmount exited $_rc after $2: $(cat "$1")"
+  grep -q '^UNMOUNTED$' "$1" || fail "rootmount did not unmount $W/mnt/rm after $2"
+  wait_unmounted "$W/mnt/rm" 30
+  # spec: tests/vm/lib.sh FORK_WARNING -- libfuse forks only to run mount_macfuse, which it must not with /dev/fd/N
+  [ "$(fork_warnings "$1")" -eq 0 ] || fail "passthrough3 on /dev/fd/N forked, as libfuse does only to run mount_macfuse"
+}
 RMLOG="$SMOKE_LOGS/rootmount.log"
-sudo -n "$BIN/rootmount" "$W/mnt/rm" nobody "$BIN/passthrough3" -f > "$RMLOG" 2>&1 &
-RM=$!
-_i=0
-while [ "$_i" -lt 90 ] && ! grep -q '^READY ' "$RMLOG"; do
-  kill -0 "$RM" 2>/dev/null || fail "rootmount exited before its mount was ready"
-  sleep 1; _i=$((_i + 1))
-done
-grep -q '^READY ' "$RMLOG" || fail "rootmount's mount was not ready within 90 s"
-RMPID="$(awk '/^READY / { print $2 }' "$RMLOG")"; RMD="$(awk '/^READY / { print $3 }' "$RMLOG")"
-CLEAN_HOOK="bounded 30 sudo -n kill -TERM $RMPID > /dev/null 2>&1"
-wait_mounted "$W/mnt/rm" 10
-[ "$(ps -o user= -p "$RMD" | tr -d ' ')" = nobody ] || fail "rootmount's daemon (pid $RMD) is not running as nobody"
+rm_start "$RMLOG"
 mount | grep -F " on $W/mnt/rm (" | grep -q macfuse || fail "$W/mnt/rm is not a macFUSE mount: $(mount | grep -F " on $W/mnt/rm (")"
 must 30 "writing through the root mount" sh -c 'echo through-dev-fd > "$1"' sh "$W/mnt/rm$RS/f"
 [ "$(bounded 30 cat "$W/mnt/rm$RS/f")" = through-dev-fd ] || fail "reading back through the root mount"
 [ "$(stat -f %Su "$RS/f")" = nobody ] || fail "$RS/f is owned by $(stat -f %Su "$RS/f"), not nobody, the daemon's user"
 ok "$(id -un) wrote and read through a mount root made, served by nobody's passthrough3 from /dev/fd/N"
 must 30 "stopping rootmount" sudo -n kill -TERM "$RMPID"
-wait_exit "$RM" 60 || fail "rootmount did not finish within 60 s of SIGTERM"
-wait "$RM"; rc=$?
-CLEAN_HOOK=""
-grep -q '^UNMOUNTED$' "$RMLOG" || fail "rootmount did not unmount $W/mnt/rm"
-grep -q '^DAEMON-EXIT 0$' "$RMLOG" || fail "passthrough3 on /dev/fd/N did not exit 0 after root's unmount"
-[ "$rc" -eq 0 ] || fail "rootmount exited $rc"
-wait_unmounted "$W/mnt/rm" 30
-grep -q "$FORK_WARNING" "$RMLOG" && fail "passthrough3 on /dev/fd/N forked, as libfuse does only to run mount_macfuse"
+rm_finish "$RMLOG" "SIGTERM to rootmount"
+grep -q '^DAEMON-EXIT 0$' "$RMLOG" || fail "passthrough3 on /dev/fd/N did not exit 0 after root's unmount: $(cat "$RMLOG")"
 rm -f "$RS/f"
 ok "root's unmount ended the daemon (exit 0), and it never forked"
+
+echo "== SIGTERM to the /dev/fd/N daemon ends it and leaves the mount to root"
+# spec: DETAILS.md "A mount made for you: /dev/fd/N" -- on a signal libfuse only ends the session loop, as on Linux, and
+#       fuse_main's unmount closes the device without unmounting; the multithreaded loop's readers are woken on the real
+#       device, which the socketpair test cannot do. fuse_main returns 8 after a signal (upstream helper.c: a loop that
+#       ends with an error, which the signal records), so the daemon exits 8. The volume stays mounted until rootmount,
+#       seeing its daemon gone, unmounts it.
+RMLOG2="$SMOKE_LOGS/rootmount-sigterm.log"
+rm_start "$RMLOG2"
+must 30 "sending SIGTERM to nobody's passthrough3" sudo -n kill -TERM "$RMD"
+rm_finish "$RMLOG2" "SIGTERM to the daemon"
+grep -q '^DAEMON-GONE-WHILE-MOUNTED$' "$RMLOG2" || fail "the daemon's exit unmounted $W/mnt/rm itself, or rootmount did not see it: $(cat "$RMLOG2")"
+grep -q '^DAEMON-EXIT 8$' "$RMLOG2" || fail "passthrough3 did not exit 8, fuse_main's code for a signalled loop: $(cat "$RMLOG2")"
+ok "SIGTERM ended nobody's passthrough3 (exit 8) with the volume still mounted, and root unmounted it"
 
 echo "== nothing left mounted"
 for m in $ALL_MOUNTS; do is_mounted "$m" && fail "$m is still mounted"; done

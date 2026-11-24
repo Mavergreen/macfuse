@@ -15,12 +15,20 @@
  * runs mount_macfuse, and answers FUSE_INIT on the socket. Then its loop must
  * end, in one case because the "kernel" end closes, in the other because of
  * SIGTERM with libfuse's signal handlers installed, which must leave the device
- * open, as Linux libfuse does, for fuse_session_unmount. The loop is the
- * single-threaded one: the multithreaded loop wakes its readers with the
- * device's interrupt ioctl, which a socket cannot take (the 10.9 acceptance
- * job stops a multithreaded daemon on the real device). Either way
- * fuse_session_unmount must then have closed the adopted descriptor and
- * unmounted nothing. Every wait is bounded. Prints PASS.
+ * open, as Linux libfuse does, for fuse_session_unmount. The daemon raises that
+ * SIGTERM itself, from the handler of a STATFS the test sends after INIT, so it
+ * arrives before the loop's next check: a SIGTERM sent from outside could land
+ * between that check and the blocking read, and nothing would wake a read of a
+ * socket. The loop is the single-threaded one: the multithreaded loop wakes its
+ * readers with the device's interrupt ioctl, which a socket cannot take (the
+ * 10.9 acceptance job stops a multithreaded daemon on the real device). Either
+ * way fuse_session_unmount must then have closed the adopted descriptor and
+ * unmounted nothing.
+ *
+ * Two more children check what fuse_session_mount takes: /dev/fd/N with N
+ * closed must be refused, and /dev/fd/N with anything after N is an ordinary
+ * mountpoint, which leaves N alone. Neither may fork. Every wait is bounded.
+ * Prints PASS.
  */
 #define FUSE_USE_VERSION FUSE_MAKE_VERSION(3, 17)
 #include <fuse_lowlevel.h>
@@ -37,6 +45,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/statvfs.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -51,9 +60,13 @@ enum {
 	DAEMON_LOOP_FAILED = 13,
 	DAEMON_NO_HANDLERS = 14,
 	DAEMON_SIGNAL_CLOSED = 15,
+	DAEMON_BAD_FD_TAKEN = 16,
+	DAEMON_GARBAGE_ADOPTED = 17,
 };
 
 enum ending { BY_CLOSE, BY_SIGTERM };
+
+static enum ending ending;
 
 static void refuse_fork(void)
 {
@@ -70,6 +83,17 @@ static void on_init(void *userdata, struct fuse_conn_info *conn)
 	fprintf(stderr, "daemon: init callback ran\n");
 }
 
+static void on_statfs(fuse_req_t req, fuse_ino_t ino)
+{
+	struct statvfs st;
+
+	(void)ino;
+	memset(&st, 0, sizeof st);
+	fuse_reply_statfs(req, &st);
+	if (ending == BY_SIGTERM)
+		raise(SIGTERM);
+}
+
 static int daemon_main(int fd, enum ending how)
 {
 	char mp[32];
@@ -81,6 +105,8 @@ static int daemon_main(int fd, enum ending how)
 
 	memset(&ops, 0, sizeof ops);
 	ops.init = on_init;
+	ops.statfs = on_statfs;
+	ending = how;
 	snprintf(mp, sizeof mp, "/dev/fd/%d", fd);
 	pthread_atfork(refuse_fork, NULL, NULL);
 	se = fuse_session_new(&args, &ops, sizeof ops, NULL);
@@ -142,6 +168,8 @@ static const char *daemon_said(int st)
 	case DAEMON_MOUNT_FAILED: return "fuse_session_mount refused the /dev/fd/N mountpoint";
 	case DAEMON_FD_LEFT_OPEN: return "fuse_session_unmount left the adopted descriptor open";
 	case DAEMON_LOOP_FAILED: return "fuse_session_loop returned an error";
+	case DAEMON_BAD_FD_TAKEN: return "fuse_session_mount took /dev/fd/N for a closed N";
+	case DAEMON_GARBAGE_ADOPTED: return "fuse_session_mount adopted N from /dev/fd/N with more after it";
 	case DAEMON_SIGNAL_CLOSED: return "SIGTERM closed the device before fuse_session_unmount, which Linux libfuse never does";
 	}
 	snprintf(s, sizeof s, "it exited %d", WEXITSTATUS(st));
@@ -160,6 +188,7 @@ static int scenario(enum ending how)
 	unsigned char rep[4096];
 	struct fuse_out_header *oh = (struct fuse_out_header *)rep;
 	struct fuse_init_out *io = (struct fuse_init_out *)(rep + sizeof *oh);
+	struct fuse_in_header sreq;
 	struct pollfd p;
 	ssize_t n;
 
@@ -203,16 +232,98 @@ static int scenario(enum ending how)
 	}
 	printf("ok: the daemon answered FUSE_INIT on /dev/fd/N (protocol %u.%u)\n", io->major, io->minor);
 
-	if (how == BY_SIGTERM)
-		kill(pid, SIGTERM);
-	else
+	if (how == BY_SIGTERM) {
+		/* the daemon raises SIGTERM as it answers */
+		memset(&sreq, 0, sizeof sreq);
+		sreq.len = sizeof sreq;
+		sreq.opcode = FUSE_STATFS;
+		sreq.unique = 2;
+		sreq.nodeid = FUSE_ROOT_ID;
+		sreq.uid = getuid();
+		sreq.gid = getgid();
+		sreq.pid = getpid();
+		if (write(sv[0], &sreq, sizeof sreq) != (ssize_t)sizeof sreq) {
+			kill(pid, SIGKILL);
+			reap(pid, 10);
+			FAIL("writing FUSE_STATFS to the stand-in device: %s", strerror(errno));
+		}
+		if (poll(&p, 1, 10000) != 1 || (n = read(sv[0], rep, sizeof rep)) <= 0 || oh->unique != 2) {
+			kill(pid, SIGKILL);
+			reap(pid, 10);
+			FAIL("no FUSE_STATFS reply on the stand-in device within 10 s");
+		}
+	} else {
 		close(sv[0]);
+	}
 	st = reap(pid, 10);
 	if (how == BY_SIGTERM)
 		close(sv[0]);
 	if (st == -1 || !WIFEXITED(st) || WEXITSTATUS(st) != DAEMON_OK)
 		FAIL("after %s, %s", name, daemon_said(st));
 	printf("ok: after %s the daemon ended, its unmount closed the descriptor, and it ran no helper\n", name);
+	return 0;
+}
+
+/* in a child that refuses to fork: what fuse_session_mount makes of a bad /dev/fd/N */
+static int mount_check_main(void)
+{
+	char mp[40];
+	char *argv[] = { "fd-mountpoint", NULL };
+	struct fuse_args args = FUSE_ARGS_INIT(1, argv);
+	struct fuse_lowlevel_ops ops;
+	struct fuse_session *se;
+	int fd;
+
+	memset(&ops, 0, sizeof ops);
+	pthread_atfork(refuse_fork, NULL, NULL);
+	fd = open("/dev/null", O_RDONLY);
+	if (fd < 0)
+		return DAEMON_NO_SESSION;
+
+	se = fuse_session_new(&args, &ops, sizeof ops, NULL);
+	if (se == NULL)
+		return DAEMON_NO_SESSION;
+	close(fd);
+	snprintf(mp, sizeof mp, "/dev/fd/%d", fd);
+	if (fuse_session_mount(se, mp) != -1)
+		return DAEMON_BAD_FD_TAKEN;
+	fuse_session_destroy(se);
+
+	fd = open("/dev/null", O_RDONLY);
+	args = (struct fuse_args)FUSE_ARGS_INIT(1, argv);
+	se = fuse_session_new(&args, &ops, sizeof ops, NULL);
+	if (fd < 0 || se == NULL)
+		return DAEMON_NO_SESSION;
+	snprintf(mp, sizeof mp, "/dev/fd/%dx", fd);
+	/*
+	 * An ordinary mountpoint: on macOS the mount waits for the loop, so
+	 * nothing forks yet (fuse_session_fd would start it). Unmounting
+	 * before then would close an adopted N, and leaves anything else.
+	 */
+	if (fuse_session_mount(se, mp) != 0)
+		return DAEMON_MOUNT_FAILED;
+	fuse_session_unmount(se);
+	fuse_session_destroy(se);
+	if (fcntl(fd, F_GETFD) == -1)
+		return DAEMON_GARBAGE_ADOPTED;
+	return DAEMON_OK;
+}
+
+static int mount_checks(void)
+{
+	pid_t pid;
+	int st;
+
+	fflush(stdout);
+	pid = fork();
+	if (pid == -1)
+		FAIL("fork: %s", strerror(errno));
+	if (pid == 0)
+		_exit(mount_check_main());
+	st = reap(pid, 10);
+	if (st == -1 || !WIFEXITED(st) || WEXITSTATUS(st) != DAEMON_OK)
+		FAIL("checking bad /dev/fd/N mountpoints, %s", daemon_said(st));
+	printf("ok: /dev/fd/N with N closed was refused, /dev/fd/Nx left N alone, and neither forked\n");
 	return 0;
 }
 
@@ -228,7 +339,7 @@ int main(int argc, char **argv)
 	if (dladdr((void *)fuse_session_loop, &info) == 0 || realpath(info.dli_fname, got) == NULL ||
 	    realpath(argv[1], want) == NULL || strcmp(got, want) != 0)
 		FAIL("libfuse 3 was loaded from %s, not %s", info.dli_fname ? info.dli_fname : "?", argv[1]);
-	if (scenario(BY_CLOSE) != 0 || scenario(BY_SIGTERM) != 0)
+	if (mount_checks() != 0 || scenario(BY_CLOSE) != 0 || scenario(BY_SIGTERM) != 0)
 		return 1;
 	printf("PASS\n");
 	return 0;

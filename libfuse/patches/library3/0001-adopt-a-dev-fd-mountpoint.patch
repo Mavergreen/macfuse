@@ -43,7 +43,7 @@
  	se->mount_state = FUSE_DARWIN_MOUNT_CONNECTING;
  	pthread_cond_broadcast(&se->mount_cond);
  	pthread_mutex_unlock(&se->mount_lock);
-@@ -5760,6 +5772,21 @@
+@@ -5760,6 +5772,23 @@
  		goto error_out;
  
  	/*
@@ -51,7 +51,9 @@
 +	 * launching the file system and pass on the file descriptor by
 +	 * specifying /dev/fd/N as the mount point. Then the mount helper is
 +	 * not run, and the parent process owns the mount. The channel is
-+	 * still made after daemonizing, below, like every other mount.
++	 * still made after daemonizing, below, like every other mount. As
++	 * on Linux, N is not checked to be a device: a descriptor of anything
++	 * else gives the file system nothing it did not already hold.
 +	 */
 +	fd = fuse_mnt_parse_fuse_fd(mountpoint);
 +	if (fd != -1 && fcntl(fd, F_GETFD) == -1) {
@@ -65,7 +67,7 @@
  	 * We need to delay the actual mount operation until after the process
  	 * has daemonized. On macOS, daemonizing the process severs the
  	 * connection between the file system extension and the file system
-@@ -5780,6 +5807,10 @@
+@@ -5780,6 +5809,10 @@
  	}
  
  	se->mountpoint = mountpoint;
@@ -76,7 +78,7 @@
  
  	se->mount_state = FUSE_DARWIN_MOUNT_DELAYED;
  	pthread_cond_broadcast(&se->mount_cond);
-@@ -6092,12 +6123,36 @@
+@@ -6092,12 +6125,36 @@
  			pthread_cond_broadcast(&se->mount_cond);
  			pthread_mutex_unlock(&se->mount_lock);
  
@@ -113,12 +115,17 @@
  			pthread_mutex_unlock(&se->mount_lock);
  			fuse_session_unmount_start_thread(se);
  			return;
-@@ -6226,7 +6281,7 @@
+@@ -6226,7 +6283,12 @@
  #ifdef __APPLE__
  	if (atomic_exchange_explicit(&se->sig_interrupt, false,
  				     memory_order_relaxed)) {
 -		if (se->io != NULL) {
 +		if (se->io != NULL || se->mfch_adopted) {
++			/*
++			 * An adopted device's mount is not ours to unmount:
++			 * exit, as Linux does on a signal, and leave the device
++			 * to fuse_session_unmount().
++			 */
  			fuse_session_exit(se);
  			exited = true;
  		} else {
