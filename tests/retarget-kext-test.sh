@@ -35,14 +35,14 @@ CL="$(sh "$SHIPYARD_SCRIPTS/fetch_clang22.sh" "$REPO_ROOT/components/clang22")" 
 DDP="$(sh "$SHIPYARD_SCRIPTS/fetch_drydock.sh" "$REPO_ROOT/components/drydock")" || { echo "FAIL: no Drydock" >&2; exit 1; }
 
 RC="$T/recaulk"
-mkdir -p "$RC/Library/Extensions/RecaulkTest.kext/Contents"
-cat > "$RC/Library/Extensions/RecaulkTest.kext/Contents/Info.plist" << 'EOF'
+mkdir -p "$RC/Library/Extensions/RecaulkKPI.kext/Contents"
+cat > "$RC/Library/Extensions/RecaulkKPI.kext/Contents/Info.plist" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>CFBundleIdentifier</key>
-	<string>dev.mavergreen.recaulk.test</string>
+	<string>dev.mavergreen.recaulk.kpi</string>
 	<key>CFBundleVersion</key>
 	<string>9.8.7</string>
 	<key>OSBundleCompatibleVersion</key>
@@ -56,6 +56,11 @@ cat > "$RC/Library/Extensions/RecaulkTest.kext/Contents/Info.plist" << 'EOF'
 </plist>
 EOF
 
+# spec: build/retarget-kext.sh -- another Recaulk kext beside the back-fill (its boot-time kernel fixes) is ignored
+mkdir -p "$RC/Library/Extensions/RecaulkKernelFixes.kext/Contents"
+sed 's/dev\.mavergreen\.recaulk\.kpi/dev.mavergreen.recaulk.kernelfixes/; s/1\.2\.0/4.5.6/' \
+  "$RC/Library/Extensions/RecaulkKPI.kext/Contents/Info.plist" > "$RC/Library/Extensions/RecaulkKernelFixes.kext/Contents/Info.plist"
+
 # spec: build/lib.sh plist_string -- "libs PLIST" prints OSBundleLibraries as sorted id=version lines, read apart from the script's awk
 libs() {
   awk '
@@ -67,7 +72,7 @@ libs() {
 }
 want_libs() {
   printf '%s\n' com.apple.kpi.bsd=13.0.0 com.apple.kpi.iokit=13.0.0 com.apple.kpi.libkern=13.0.0 com.apple.kpi.mach=13.0.0 \
-    com.apple.kpi.unsupported=13.0.0 dev.mavergreen.recaulk.test=1.2.0 | sort
+    com.apple.kpi.unsupported=13.0.0 dev.mavergreen.recaulk.kpi=1.2.0 | sort
 }
 sha256() { if command -v shasum > /dev/null 2>&1; then shasum -a 256 "$1"; else sha256sum "$1"; fi | awk '{ print $1 }'; }
 V="$(upstream_version)"
@@ -120,7 +125,7 @@ fi
 echo "== OSBundleLibraries"
 libs "$P" | tee "$T/libs"
 want_libs > "$T/libs.want"
-diff "$T/libs.want" "$T/libs" > "$T/diff" || { cat "$T/diff" >&2; fail "OSBundleLibraries is not the five 10.9 KPIs plus dev.mavergreen.recaulk.test 1.2.0"; }
+diff "$T/libs.want" "$T/libs" > "$T/diff" || { cat "$T/diff" >&2; fail "OSBundleLibraries is not the five 10.9 KPIs plus dev.mavergreen.recaulk.kpi 1.2.0"; }
 ! grep -q 'com\.apple\.kpi\.private' "$P" || fail "Info.plist names com.apple.kpi.private"
 [ "$(plist_string "$P" CFBundleIdentifier)" = io.macfuse.filesystems.macfuse.21 ] || fail "CFBundleIdentifier is not io.macfuse.filesystems.macfuse.21"
 [ -n "$UP_VER" ] && [ "$(plist_string "$P" CFBundleVersion)" = "$UP_VER" ] || fail "CFBundleVersion is not upstream's '$UP_VER'"
@@ -149,6 +154,15 @@ if sh "$REPO_ROOT/build/retarget-kext.sh" "$TBZ" "$T/empty" "$T/out3" > "$T/run3
   fail "retarget-kext.sh passed with no back-fill kext"
 fi
 [ ! -e "$T/out3/macfuse.kext" ] || fail "retarget-kext.sh wrote a kext with no back-fill kext"
+
+echo "== a Recaulk root with two back-fill kexts"
+mkdir -p "$T/two/Library/Extensions"
+cp -R "$RC/Library/Extensions/RecaulkKPI.kext" "$T/two/Library/Extensions/A.kext"
+cp -R "$RC/Library/Extensions/RecaulkKPI.kext" "$T/two/Library/Extensions/B.kext"
+if sh "$REPO_ROOT/build/retarget-kext.sh" "$TBZ" "$T/two" "$T/out4" > "$T/run4.log" 2>&1; then
+  fail "retarget-kext.sh passed with two back-fill kexts"
+fi
+[ ! -e "$T/out4/macfuse.kext" ] || fail "retarget-kext.sh wrote a kext with two back-fill kexts"
 
 [ "$fails" -eq 0 ] || exit 1
 echo "retarget-kext-test: PASS"

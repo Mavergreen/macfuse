@@ -135,8 +135,6 @@ jobs:
           mkdir "$b/recaulk-root"
           gzip -dc < "$payload" > "$b/recaulk-pkg/payload.cpio"
           (cd "$b/recaulk-root" && cpio -id --quiet < "$b/recaulk-pkg/payload.cpio")
-          set -- "$b"/recaulk-root/Library/Extensions/*.kext
-          [ -d "$1" ] || { echo "::error::Recaulk $rc's pkg ships no Library/Extensions kext, which macfuse.kext links"; exit 1; }
           sh build/retarget-kext.sh "$MACFUSE_DEBUG_TBZ" "$b/recaulk-root" "$b/kext-out"
 
       # spec: INGREDIENTS.md "Conformance deviations" objc-measure -- the compat guard, OBJC_STRICT on, over every shipped
