@@ -1,0 +1,1 @@
+A libfuse 3 file system serving a /dev/fd/N mountpoint with the single-threaded loop (fuse_session_loop, fuse_main -s, lklfuse) now exits promptly on SIGTERM, SIGINT or SIGHUP instead of waiting for the volume to be unmounted.

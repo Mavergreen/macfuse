@@ -120,7 +120,11 @@ With `/dev/fd/N`, libfuse:
   as Linux libfuse does;
 - on a signal that would unmount a file system it made (`SIGTERM`, `SIGINT`, `SIGHUP`), only ends the session loop, as
   Linux libfuse does, leaving the descriptor for `fuse_session_unmount()`. The daemon exits and the volume stays
-  mounted, with nobody serving it, until its owner unmounts it.
+  mounted, with nobody serving it, until its owner unmounts it. The single-threaded loop (`fuse_session_loop`, which
+  `fuse_main -s` and lklfuse use) waits on the device in slices of 1 s and looks at the session's exit flag between
+  them, so the signal ends it within about a second wherever the signal lands. Without that it blocked in a read that
+  nothing woke: the handler only notes the signal, and the wake-up the channel sends could come before it or not
+  reach the read. (The multithreaded loop's readers are woken by `MFChannelInterrupt`.) `fuse_main` still returns 8.
 
 The owner unmounting the volume ends the daemon, as an unmount always does.
 

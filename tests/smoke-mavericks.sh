@@ -216,8 +216,8 @@ chmod 1777 "$RS" || fail "chmod 1777 $RS"
 is_mounted "$W/mnt/rm" && fail "$W/mnt/rm is already mounted before rootmount starts"
 track_mount "$W/mnt/rm"
 running() { ps -p "$1" > /dev/null 2>&1; }
-rm_start() {  # LOG: starts rootmount, waits for READY; sets RM (sudo's pid), RMPID (rootmount's) and RMD (the daemon's)
-  sudo -n "$BIN/rootmount" "$W/mnt/rm" nobody "$BIN/passthrough3" -f > "$1" 2>&1 &
+rm_start() {  # LOG [DAEMON-OPTION]: starts rootmount, waits for READY; sets RM (sudo's pid), RMPID (rootmount's) and RMD (the daemon's)
+  sudo -n "$BIN/rootmount" "$W/mnt/rm" nobody "$BIN/passthrough3" -f ${2:+"$2"} > "$1" 2>&1 &
   RM=$!
   CLEAN_HOOK="bounded 30 sudo -n pkill -TERM -f '^$BIN/rootmount ' > /dev/null 2>&1"
   _i=0
@@ -268,6 +268,24 @@ rm_finish "$RMLOG2" "SIGTERM to the daemon"
 grep -q '^DAEMON-GONE-WHILE-MOUNTED$' "$RMLOG2" || fail "the daemon's exit unmounted $W/mnt/rm itself, or rootmount did not see it: $(cat "$RMLOG2")"
 grep -q '^DAEMON-EXIT 8$' "$RMLOG2" || fail "passthrough3 did not exit 8, fuse_main's code for a signalled loop: $(cat "$RMLOG2")"
 ok "SIGTERM ended nobody's passthrough3 (exit 8) with the volume still mounted, and root unmounted it"
+
+echo "== SIGTERM to a single-threaded /dev/fd/N daemon ends it too"
+# spec: DETAILS.md "A mount made for you: /dev/fd/N" -- passthrough3 -s serves with fuse_session_loop, as lklfuse does,
+#       whose blocking read nothing wakes on a signal the handler only noted (the multithreaded loop's readers are
+#       woken by MFChannelInterrupt); libfuse waits on an adopted device in 1 s slices (libfuse/patches/library3) so the
+#       daemon exits 8 within seconds, not when root unmounts (the 10.9 VM, linuxfs run 45386140589: 30 s and more).
+#       rm_finish allows 60 s; the daemon must be gone in 10, and still have left the mount to root (rootmount's
+#       DAEMON-GONE-WHILE-MOUNTED), which then unmounts it.
+RMLOG3="$SMOKE_LOGS/rootmount-sigterm-st.log"
+rm_start "$RMLOG3" -s
+must 30 "sending SIGTERM to nobody's single-threaded passthrough3" sudo -n kill -TERM "$RMD"
+_i=0
+while [ "$_i" -lt 10 ] && running "$RMD"; do sleep 1; _i=$((_i + 1)); done
+running "$RMD" && { must 30 "stopping rootmount" sudo -n kill -TERM "$RMPID"; rm_finish "$RMLOG3" "cleanup"; fail "the single-threaded passthrough3 was still running 10 s after SIGTERM, until root unmounted: $(cat "$RMLOG3")"; }
+rm_finish "$RMLOG3" "SIGTERM to the single-threaded daemon"
+grep -q '^DAEMON-GONE-WHILE-MOUNTED$' "$RMLOG3" || fail "the single-threaded daemon's exit unmounted $W/mnt/rm itself, or rootmount did not see it: $(cat "$RMLOG3")"
+grep -q '^DAEMON-EXIT 8$' "$RMLOG3" || fail "passthrough3 -s did not exit 8, fuse_main's code for a signalled loop: $(cat "$RMLOG3")"
+ok "SIGTERM ended nobody's single-threaded passthrough3 (exit 8) within 10 s with the volume still mounted, and root unmounted it"
 
 echo "== nothing left mounted"
 for m in $ALL_MOUNTS; do is_mounted "$m" && fail "$m is still mounted"; done

@@ -1,0 +1,110 @@
+--- a/lib/fuse.c
++++ b/lib/fuse.c
+@@ -6006,9 +6006,14 @@
+ 			timeout = 0;
+ 
+ #ifdef __APPLE__
+-		if (mfch != NULL)
+-			res = MFChannelWaitForNextMessage(mfch, timeout * 1000);
+-		else
++		if (mfch != NULL) {
++			unsigned ms = timeout * 1000;
++
++			/* a signal's wake-up can be lost: look again */
++			if (se->mfch_adopted && ms > FUSE_ADOPTED_WAIT_MS)
++				ms = FUSE_ADOPTED_WAIT_MS;
++			res = MFChannelWaitForNextMessage(mfch, ms);
++		} else
+ #endif
+ 		res = poll(&fds, 1, timeout * 1000);
+ 		if (res == -1) {
+@@ -6026,6 +6031,12 @@
+ 
+ 			fuse_session_process_buf_internal(se, &fbuf, NULL);
+ 		} else {
++			curr_time(&now);
++#ifdef __APPLE__
++			/* only the shortened wait of an adopted device ends early */
++			if (now.tv_sec < next_clean)
++				continue;
++#endif
+ 			timeout = fuse_clean_cache(f);
+ 			curr_time(&now);
+ 			next_clean = now.tv_sec + timeout;
+@@ -6033,6 +6044,10 @@
+ 	}
+ 
+ 	fuse_buf_free(&fbuf);
++#ifdef __APPLE__
++	if (se->mfch_adopted && se->error != 0)
++		res = -1; /* as fuse_main reports a signalled loop */
++#endif
+ 	return res < 0 ? -1 : 0;
+ }
+ 
+--- a/lib/fuse_i.h
++++ b/lib/fuse_i.h
+@@ -489,6 +489,38 @@
+  * @return 0 on success, or a negative errno value on failure
+  */
+ int fuse_session_mfch(struct fuse_session *se, MFChannelRef *mfchp);
++
++/*
++ * The longest an adopted /dev/fd/N device is waited on before the session is
++ * asked whether it should exit, in milliseconds. A signal's handler only sets
++ * a flag, and the wake-up that the channel's signal sources send can reach the
++ * waiting thread before the handler has run, or never reach a blocking read:
++ * nothing else would end a single-threaded loop. Not unmounting, which would
++ * close the device, is the point of an adopted mount, so the loop looks again.
++ */
++#define FUSE_ADOPTED_WAIT_MS 1000
++
++/*
++ * Waits on an adopted device for the next request, for at most
++ * FUSE_ADOPTED_WAIT_MS at a time. Returns 1 when a request can be read, 0 once
++ * the session has exited, or -1 when the channel failed (the caller's read
++ * reports why).
++ */
++static inline int fuse_session_wait_adopted(struct fuse_session *se,
++					    MFChannelRef mfch)
++{
++	for (;;) {
++		int res = MFChannelWaitForNextMessage(mfch,
++						      FUSE_ADOPTED_WAIT_MS);
++
++		if (res == 1)
++			return 1;
++		if (fuse_session_exited(se))
++			return 0;
++		if (res == -1 && errno != EINTR)
++			return -1;
++	}
++}
+ #endif
+ 
+ /* ----------------------------------------------------------- *
+--- a/lib/fuse_loop.c
++++ b/lib/fuse_loop.c
+@@ -24,6 +24,22 @@
+ 	};
+ 
+ 	while (!fuse_session_exited(se)) {
++#ifdef __APPLE__
++		if (se->mfch_adopted) {
++			MFChannelRef mfch = NULL;
++
++			/*
++			 * The blocking read below is not woken by a signal
++			 * that the handler only noted: wait in slices.
++			 */
++			if (fuse_session_mfch(se, &mfch) == 0 &&
++			    mfch != NULL &&
++			    fuse_session_wait_adopted(se, mfch) == 0) {
++				res = 0;
++				break;
++			}
++		}
++#endif
+ 		res = fuse_session_receive_buf_internal(se, &fbuf, NULL);
+ 
+ 		if (res == -EINTR)
