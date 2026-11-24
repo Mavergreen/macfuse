@@ -4,7 +4,8 @@
 #       library sources are compiled directly: the source lists of library2/lib/Makefile.am (DARWIN, ICONV) and
 #       library3/lib/meson.build (darwin, HAVE_ICONV), with the hand-written config headers of libfuse/config/.
 #   usage: build-libfuse.sh SRC STAGE EXAMPLES
-#          SRC holds the fetched upstream sources (build/fetch-sources.sh): SRC/library2, SRC/library3.
+#          SRC holds the fetched upstream sources (build/fetch-sources.sh): SRC/library2, SRC/library3; this script
+#          patches SRC/library3 in place.
 #          STAGE must already hold MFMount (build/build-mfmount.sh). Writes STAGE/<MACFUSE_PREFIX>/lib/
 #          {libfuse.2.dylib,libfuse.dylib,libfuse.la,libfuse3.4.dylib,libfuse3.dylib,pkgconfig/{fuse,fuse3}.pc} and
 #          STAGE/<MACFUSE_PREFIX>/include/{fuse.h,fuse/,fuse3/}, with upstream's install names (/usr/local/lib/...)
@@ -34,6 +35,11 @@ grep -qx "#define PACKAGE_VERSION \"$v2\"" "$CFG/lib2/config.h" || { echo "build
 grep -qx "#define PACKAGE_VERSION \"$v3\"" "$CFG/lib3/fuse_config.h" || { echo "build-libfuse: Library-3 is $v3; libfuse/config/lib3/fuse_config.h is not" >&2; exit 1; }
 cv3="$(awk '/FUSE_MAJOR_VERSION/ { a = $3 } /FUSE_MINOR_VERSION/ { b = $3 } /FUSE_HOTFIX_VERSION/ { c = $3 } END { print a "." b "." c }' "$CFG/lib3/libfuse_config.h")"
 [ "$cv3" = "$v3" ] || { echo "build-libfuse: Library-3 is $v3; libfuse/config/lib3/libfuse_config.h says $cv3" >&2; exit 1; }
+
+# spec: DETAILS.md "A mount made for you: /dev/fd/N" -- libfuse/patches/library3 is this product's change to libfuse 3,
+#       applied once to the fetched tree (shipyard's apply_patches.sh refuses a tree patched with another set)
+sh "$SHIPYARD_SCRIPTS/apply_patches.sh" "$L3" "$REPO_ROOT/libfuse/patches/library3" ||
+  { echo "build-libfuse: libfuse/patches/library3 does not apply to $L3" >&2; exit 1; }
 
 macfuse_toolchain build-libfuse || exit 1
 CC="$CL/bin/clang"

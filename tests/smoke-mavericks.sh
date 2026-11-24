@@ -6,15 +6,17 @@
 #       forwards once the mount is used; libfuse 3 and 2 hello, passthrough3 with tests/vm/ops.sh, the default-op test, the
 #       Gate 0b probes (tests/vm/gate0b.sh), a macFUSE.framework file system, a binary built against upstream 4.0.5, an
 #       unknown option given to libfuse and to mount_macfuse itself, mount_macfuse's failure and exit-notification path once,
-#       a kill -9'd daemon's volume cleared by umount, and the MFMount device and osrelease shim tests. Any panic, hang or
+#       a kill -9'd daemon's volume cleared by umount, a mount root makes with allow_other and hands to an unprivileged
+#       passthrough3 through libfuse's /dev/fd/N mountpoint (tests/vm/rootmount.c), and the MFMount device, libfuse
+#       /dev/fd/N and osrelease shim tests. Any panic, hang or
 #       new crash report fails it. On any exit it unmounts what it mounted and kills its daemons; on a failing one it also
 #       unloads the kexts it loaded (tests/vm/lib.sh cleanup_on_exit).
 #   usage: smoke-mavericks.sh VERSION BINDIR
 #          VERSION is the run's version (the pkg installed). BINDIR holds hello2, hello3, passthrough3 and framework-fs
-#          (build/build-libfuse.sh and build/build-framework.sh EXAMPLES), probe-fs and, when SMOKE_OLD_ABI=1, old-abi
-#          (tests/vm/build-tests.sh). SMOKE_FRESH=0 skips the "nothing preloaded" check (a guest whose kexts already
-#          loaded). SHIPYARD_SCRIPTS is needed for the MFMount device and osrelease shim tests. Run as the guest's user,
-#          not root; passwordless sudo is used only to read system.log when it must.
+#          (build/build-libfuse.sh and build/build-framework.sh EXAMPLES), probe-fs, rootmount and, when SMOKE_OLD_ABI=1,
+#          old-abi (tests/vm/build-tests.sh). SMOKE_FRESH=0 skips the "nothing preloaded" check (a guest whose kexts already
+#          loaded). SHIPYARD_SCRIPTS is needed for the MFMount device, libfuse /dev/fd/N and osrelease shim tests. Run as
+#          the guest's user, not root; passwordless sudo is used to read system.log when it must, and to run rootmount.
 #          Exits 77 where it cannot run (not 10.9, product not installed, no arguments); the job treats 77 as failure.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -29,9 +31,9 @@ VERSION=$1; BIN="$(cd "$2" && pwd)" || fail "no $2"
 [ "$(id -u)" != 0 ] || fail "run this as the guest's user, not root: FUSE volumes are mounted by users"
 W=/private/tmp/macfuse-smoke
 mkdir -p "$SMOKE_LOGS" "$W/mnt" || fail "mkdir $W"
-all_crashes() { for _c in mount_macfuse load_macfuse hello2 hello3 passthrough3 probe-fs framework-fs old-abi; do crash_reports "$_c"; done; }
+all_crashes() { for _c in mount_macfuse load_macfuse hello2 hello3 passthrough3 probe-fs framework-fs old-abi rootmount; do crash_reports "$_c"; done; }
 CRASH0="$(all_crashes | wc -l | tr -d ' ')"
-for e in hello2 hello3 passthrough3 framework-fs probe-fs; do [ -x "$BIN/$e" ] || fail "no $BIN/$e"; done
+for e in hello2 hello3 passthrough3 framework-fs probe-fs rootmount; do [ -x "$BIN/$e" ] || fail "no $BIN/$e"; done
 [ "${SMOKE_OLD_ABI:-0}" = 0 ] || [ -x "$BIN/old-abi" ] || fail "SMOKE_OLD_ABI=1 and no $BIN/old-abi"
 syslog_lines() { wc -l < /var/log/system.log 2>/dev/null || sudo -n wc -l < /var/log/system.log; }
 syslog_since() { { tail -n +"$(($1 + 1))" /var/log/system.log 2>/dev/null || sudo -n tail -n +"$(($1 + 1))" /var/log/system.log; } | grep -F "$2"; }
@@ -199,18 +201,59 @@ bounded 60 umount "$W/mnt/k" 2>/dev/null || bounded 60 sudo -n umount "$W/mnt/k"
 wait_unmounted "$W/mnt/k" 30
 ok "a killed daemon's volume answers at once and umount clears it"
 
+echo "== root mounts with allow_other; an unprivileged daemon serves it through /dev/fd/N"
+# spec: DETAILS.md "A mount made for you: /dev/fd/N" -- root (tests/vm/rootmount.c) runs mount_macfuse with allow_other
+#       and hands the device to passthrough3 running as nobody, whose libfuse must not run mount_macfuse itself; this
+#       user, neither root nor nobody, writes and reads through the mount, and the file lands owned by nobody. rootmount
+#       bounds itself (300 s), since this user cannot kill a root process; the cleanup asks sudo to stop it.
+RS="$W/rootmount-scratch"
+safe_rm "$RS"
+mkdir -p "$RS" "$W/mnt/rm" || fail "mkdir $RS $W/mnt/rm"
+chmod 1777 "$RS" || fail "chmod 1777 $RS"
+is_mounted "$W/mnt/rm" && fail "$W/mnt/rm is already mounted before rootmount starts"
+track_mount "$W/mnt/rm"
+RMLOG="$SMOKE_LOGS/rootmount.log"
+sudo -n "$BIN/rootmount" "$W/mnt/rm" nobody "$BIN/passthrough3" -f > "$RMLOG" 2>&1 &
+RM=$!
+_i=0
+while [ "$_i" -lt 90 ] && ! grep -q '^READY ' "$RMLOG"; do
+  kill -0 "$RM" 2>/dev/null || fail "rootmount exited before its mount was ready"
+  sleep 1; _i=$((_i + 1))
+done
+grep -q '^READY ' "$RMLOG" || fail "rootmount's mount was not ready within 90 s"
+RMPID="$(awk '/^READY / { print $2 }' "$RMLOG")"; RMD="$(awk '/^READY / { print $3 }' "$RMLOG")"
+CLEAN_HOOK="bounded 30 sudo -n kill -TERM $RMPID > /dev/null 2>&1"
+wait_mounted "$W/mnt/rm" 10
+[ "$(ps -o user= -p "$RMD" | tr -d ' ')" = nobody ] || fail "rootmount's daemon (pid $RMD) is not running as nobody"
+mount | grep -F " on $W/mnt/rm (" | grep -q macfuse || fail "$W/mnt/rm is not a macFUSE mount: $(mount | grep -F " on $W/mnt/rm (")"
+must 30 "writing through the root mount" sh -c 'echo through-dev-fd > "$1"' sh "$W/mnt/rm$RS/f"
+[ "$(bounded 30 cat "$W/mnt/rm$RS/f")" = through-dev-fd ] || fail "reading back through the root mount"
+[ "$(stat -f %Su "$RS/f")" = nobody ] || fail "$RS/f is owned by $(stat -f %Su "$RS/f"), not nobody, the daemon's user"
+ok "$(id -un) wrote and read through a mount root made, served by nobody's passthrough3 from /dev/fd/N"
+must 30 "stopping rootmount" sudo -n kill -TERM "$RMPID"
+wait_exit "$RM" 60 || fail "rootmount did not finish within 60 s of SIGTERM"
+wait "$RM"; rc=$?
+CLEAN_HOOK=""
+grep -q '^UNMOUNTED$' "$RMLOG" || fail "rootmount did not unmount $W/mnt/rm"
+grep -q '^DAEMON-EXIT 0$' "$RMLOG" || fail "passthrough3 on /dev/fd/N did not exit 0 after root's unmount"
+[ "$rc" -eq 0 ] || fail "rootmount exited $rc"
+wait_unmounted "$W/mnt/rm" 30
+grep -q "$FORK_WARNING" "$RMLOG" && fail "passthrough3 on /dev/fd/N forked, as libfuse does only to run mount_macfuse"
+rm -f "$RS/f"
+ok "root's unmount ended the daemon (exit 0), and it never forked"
+
 echo "== nothing left mounted"
 for m in $ALL_MOUNTS; do is_mounted "$m" && fail "$m is still mounted"; done
 mount | grep -q -e '(macfuse' -e '(osxfuse' && fail "a FUSE volume is still mounted"
 ok "all unmounted"
 
-echo "== the MFMount device test and the osrelease shim test, on 10.9"
+echo "== the MFMount device, libfuse /dev/fd/N and osrelease shim tests, on 10.9"
 [ -n "${SHIPYARD_SCRIPTS:-}" ] || fail "SHIPYARD_SCRIPTS is not set; the MFMount and shim tests need it"
 # spec: tests/mfmount-device-test.sh -- it builds MFMount from the pinned upstream sources, fetched here when absent
 MFMOUNT_SRC="${MFMOUNT_SRC:-${MAVERICKS_BUILD_ROOT:-${TMPDIR:-/tmp}/mm-build}/src}"; export MFMOUNT_SRC
 [ -f "$MFMOUNT_SRC/mount/Mount/Bridge/Trampoline.c" ] ||
   must 1800 "build/fetch-sources.sh $MFMOUNT_SRC" sh "$REPO_ROOT/build/fetch-sources.sh" "$MFMOUNT_SRC" > "$SMOKE_LOGS/fetch-sources.log" 2>&1
-for t in mfmount-device-test.sh osrelease-shim-test.sh; do
+for t in mfmount-device-test.sh libfuse-fd-mountpoint-test.sh osrelease-shim-test.sh; do
   bounded 1800 sh "$REPO_ROOT/tests/$t" > "$SMOKE_LOGS/$t.log" 2>&1
   rc=$?
   [ "$rc" -eq 0 ] || fail "tests/$t exited $rc (77 is a skip, 124 a hang, a failure here)"

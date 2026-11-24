@@ -1,0 +1,1 @@
+A libfuse 3 file system started with the mountpoint /dev/fd/N now serves the macFUSE device a root process already mounted, instead of running mount_macfuse.

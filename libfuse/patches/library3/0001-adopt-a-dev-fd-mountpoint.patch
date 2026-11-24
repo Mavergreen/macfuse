@@ -1,0 +1,124 @@
+--- a/lib/fuse_i.h
++++ b/lib/fuse_i.h
+@@ -289,6 +289,12 @@
+ #ifdef __APPLE__
+ 	MFChannelRef mfch;
+ 	bool mfch_closed;
++	/*
++	 * The mountpoint was /dev/fd/N: fd holds a device another process
++	 * opened and mounted, and mfch is made from it instead of by running
++	 * the mount helper. That process owns the mount.
++	 */
++	bool mfch_adopted;
+ #endif
+ 	int fd;
+ 	struct fuse_custom_io *io;
+--- a/lib/fuse_lowlevel.c
++++ b/lib/fuse_lowlevel.c
+@@ -5693,7 +5693,10 @@
+ 	pthread_cond_broadcast(&se->mount_cond);
+ 	pthread_mutex_unlock(&se->mount_lock);
+ 
+-	mfch = fuse_session_mount_real(se);
++	if (se->mfch_adopted)
++		mfch = MFChannelCreateWithDeviceFileDescriptor(se->fd);
++	else
++		mfch = fuse_session_mount_real(se);
+ 	if (mfch == NULL)
+ 		err = errno != 0 ? errno : ENODEV;
+ 
+@@ -5720,6 +5723,15 @@
+ 	se->fd = -1;
+ 	pthread_mutex_unlock(&se->lock);
+ 
++	if (se->mfch_adopted) {
++		/* Nothing to wait for: the adopted device is already mounted. */
++		se->mount_state = FUSE_DARWIN_MOUNT_MOUNTED;
++		pthread_cond_broadcast(&se->mount_cond);
++		pthread_mutex_unlock(&se->mount_lock);
++		fuse_session_mount_complete(se, 0);
++		return 0;
++	}
++
+ 	se->mount_state = FUSE_DARWIN_MOUNT_CONNECTING;
+ 	pthread_cond_broadcast(&se->mount_cond);
+ 	pthread_mutex_unlock(&se->mount_lock);
+@@ -5760,6 +5772,21 @@
+ 		goto error_out;
+ 
+ 	/*
++	 * As on Linux: the caller may open and mount the device before
++	 * launching the file system and pass on the file descriptor by
++	 * specifying /dev/fd/N as the mount point. Then the mount helper is
++	 * not run, and the parent process owns the mount. The channel is
++	 * still made after daemonizing, below, like every other mount.
++	 */
++	fd = fuse_mnt_parse_fuse_fd(mountpoint);
++	if (fd != -1 && fcntl(fd, F_GETFD) == -1) {
++		fuse_log(FUSE_LOG_ERR,
++			"fuse: Invalid file descriptor /dev/fd/%u\n",
++			fd);
++		goto error_out;
++	}
++
++	/*
+ 	 * We need to delay the actual mount operation until after the process
+ 	 * has daemonized. On macOS, daemonizing the process severs the
+ 	 * connection between the file system extension and the file system
+@@ -5780,6 +5807,10 @@
+ 	}
+ 
+ 	se->mountpoint = mountpoint;
++	if (fd != -1) {
++		se->fd = fd;
++		se->mfch_adopted = true;
++	}
+ 
+ 	se->mount_state = FUSE_DARWIN_MOUNT_DELAYED;
+ 	pthread_cond_broadcast(&se->mount_cond);
+@@ -6092,12 +6123,36 @@
+ 			pthread_cond_broadcast(&se->mount_cond);
+ 			pthread_mutex_unlock(&se->mount_lock);
+ 
++			if (se->mfch_adopted && se->fd != -1) {
++				close(se->fd);
++				se->fd = -1;
++			}
+ 			mount_complete = true;
+ 			goto out;
+ 
+ 		case FUSE_DARWIN_MOUNT_MOUNTING:
+ 		case FUSE_DARWIN_MOUNT_CONNECTING:
+ 		case FUSE_DARWIN_MOUNT_MOUNTED:
++			if (se->mfch_adopted) {
++				/*
++				 * As on Linux, where fuse_kern_unmount() closes
++				 * a /dev/fd/N mount's descriptor: close the
++				 * device and leave the mount to the process that
++				 * made it.
++				 */
++				if (se->mount_state ==
++				    FUSE_DARWIN_MOUNT_MOUNTING) {
++					pthread_cond_wait(&se->mount_cond,
++							  &se->mount_lock);
++					break;
++				}
++				se->mount_state = FUSE_DARWIN_MOUNT_UNMOUNTED;
++				pthread_cond_broadcast(&se->mount_cond);
++				pthread_mutex_unlock(&se->mount_lock);
++
++				fuse_session_close(se);
++				goto out;
++			}
+ 			pthread_mutex_unlock(&se->mount_lock);
+ 			fuse_session_unmount_start_thread(se);
+ 			return;
+@@ -6226,7 +6281,7 @@
+ #ifdef __APPLE__
+ 	if (atomic_exchange_explicit(&se->sig_interrupt, false,
+ 				     memory_order_relaxed)) {
+-		if (se->io != NULL) {
++		if (se->io != NULL || se->mfch_adopted) {
+ 			fuse_session_exit(se);
+ 			exited = true;
+ 		} else {

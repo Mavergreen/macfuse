@@ -71,6 +71,7 @@ jobs:
             [ -f /Library/Extensions/RecaulkKPI.kext/Contents/Info.plist ] || { echo "the Recaulk release does not ship RecaulkKPI.kext, which the kext links"; exit 1; }
             sudo installer -pkg "dist/macfuse-$MACFUSE_VERSION.pkg" -target /
             sh tests/vm/build-tests.sh probe-fs bin /
+            sh tests/vm/build-tests.sh rootmount bin -
             status=0; SMOKE_OLD_ABI=0 sh tests/smoke-mavericks.sh "$MACFUSE_VERSION" bin || status=$?
             [ "$status" -eq 0 ] || { echo "tests/smoke-mavericks.sh exited $status (77 is a skip, a failure here)"; exit 1; }
             status=0; MACFUSE_ALERT_PATH=1 sh tests/vm/alert-path.sh bin || status=$?
@@ -177,5 +178,6 @@ jobs:
             status=0; sh tests/vm/takeover-scenario.sh "$MACFUSE_VERSION" "dist/macfuse-$MACFUSE_VERSION.pkg" deps/recaulk-*.pkg || status=$?
             [ "$status" -eq 0 ] || { echo "tests/vm/takeover-scenario.sh exited $status (77 is a skip, a failure here)"; exit 1; }
             sh tests/vm/build-tests.sh probe-fs bin /
+            sh tests/vm/build-tests.sh rootmount bin -
             status=0; SMOKE_OLD_ABI=1 sh tests/smoke-mavericks.sh "$MACFUSE_VERSION" bin || status=$?
             [ "$status" -eq 0 ] || { echo "tests/smoke-mavericks.sh exited $status (77 is a skip, a failure here)"; exit 1; }

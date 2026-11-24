@@ -91,6 +91,37 @@ installer again.
 - **Installing resets `/usr/local/lib` and `/usr/local/include`** to owner root:wheel, mode 755, as
   upstream's installer does. If a package manager made them yours or group-writable, set them back.
 
+## A mount made for you: /dev/fd/N
+
+libfuse 3 accepts the mountpoint `/dev/fd/N`, as Linux libfuse does, where N is a macFUSE device descriptor the file
+system inherited from the process that started it. This lets a privileged process mount a file system that an
+unprivileged one serves: for example, root mounts with `allow_other`, which macFUSE allows only root or an admin, and
+the daemon runs as an account that can do nothing else. Upstream macFUSE leaves this out on macOS;
+`libfuse/patches/library3/` adds it.
+
+The privileged process does what libfuse does to mount: it runs
+`/Library/Filesystems/macfuse.fs/Contents/Resources/mount_macfuse` with `_FUSE_CALL_BY_LIB=1`, `_FUSE_COMMVERS=2`,
+`_FUSE_DAEMON_PATH` and `_FUSE_COMMFD` (one end of a socket pair), and the options and mount point as arguments. The
+helper sends the device descriptor over that socket (`SCM_RIGHTS`, one byte), then calls mount(2), which returns only
+once a daemon has answered the kernel's `INIT`. So the process must start the file system with
+`/dev/fd/N` as its mountpoint before it waits for the 4-byte mount status the helper sends next (0, or an errno).
+`tests/vm/rootmount.c` is a worked example.
+
+With `/dev/fd/N`, libfuse:
+
+- never runs `mount_macfuse`, and ignores mount options such as `allow_other` or `volname`, which belong to the mount
+  that was already made;
+- serves descriptor N, still waiting until after `fuse_daemonize()` to start, as it does for every mount;
+- leaves the mount to the process that made it: `fuse_session_unmount()` closes the descriptor and unmounts nothing,
+  as Linux libfuse does;
+- on a signal that would unmount a file system it made (`SIGTERM`, `SIGINT`, `SIGHUP`), only ends the session loop, as
+  Linux libfuse does, leaving the descriptor for `fuse_session_unmount()`. The daemon exits and the volume stays
+  mounted, with nobody serving it, until its owner unmounts it.
+
+The owner unmounting the volume ends the daemon, as an unmount always does.
+
+libfuse 2 does not take `/dev/fd/N`, on macOS or Linux.
+
 ## MFMount is a C stand-in
 
 Upstream's `MFMount.framework` is Swift that needs the Foundation, Dispatch, OSLog, System and XPC

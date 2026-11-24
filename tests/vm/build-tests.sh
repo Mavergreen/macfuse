@@ -10,9 +10,11 @@
 #          OUT/old-abi: tests/vm/old-abi/hello-old.c against upstream macFUSE 4.0.5's own headers and libfuse 2,
 #          UPSTREAM405_ROOT/usr/local/{include/fuse,lib/libfuse.2.dylib} (/ while 4.0.5 is installed, before the takeover),
 #          so it records 4.0.5's install name and versions.
+#   usage: build-tests.sh rootmount OUT -
+#          OUT/rootmount: tests/vm/rootmount.c, the privileged mounter of the smoke's /dev/fd/N case; it links no libfuse.
 #          Fails, naming the step, on any error; replaces only its own file in OUT.
 set -eu
-[ $# -eq 3 ] || { echo "usage: $0 probe-fs|old-abi OUT ROOT" >&2; exit 2; }
+[ $# -eq 3 ] || { echo "usage: $0 probe-fs|old-abi|rootmount OUT ROOT" >&2; exit 2; }
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "$HERE/../.." && pwd)}"
 export REPO_ROOT
@@ -26,7 +28,8 @@ case "$WHAT" in
   old-abi)
     [ -f "$ROOT/usr/local/include/fuse/fuse.h" ] && [ -f "$ROOT/usr/local/lib/libfuse.2.dylib" ] ||
       { echo "build-tests: no 4.0.5 headers and libfuse.2.dylib under $ROOT/usr/local" >&2; exit 1; } ;;
-  *) echo "usage: $0 probe-fs|old-abi OUT ROOT" >&2; exit 2 ;;
+  rootmount) ;;
+  *) echo "usage: $0 probe-fs|old-abi|rootmount OUT ROOT" >&2; exit 2 ;;
 esac
 macfuse_toolchain build-tests || exit 1
 W="$(mktemp -d "$BUILD/vm-tests.XXXXXX")"
@@ -39,7 +42,11 @@ CC="$CL/bin/clang"
 BASE="--no-default-config --target=x86_64-apple-macos10.9 -isysroot $SDK -isystem $RC/include/recaulk -O2 -g -Wall -Wno-unused-parameter -D_FILE_OFFSET_BITS=64"
 NM="$CL/bin/llvm-nm" sh "$REPO_ROOT/build/recaulk-unexported.sh" "$RC/lib/librecaulk.a" > "$W/unexported"
 RECAULK="$RC/lib/librecaulk.a -Wl,-unexported_symbols_list,$W/unexported"
-if [ "$WHAT" = probe-fs ]; then
+if [ "$WHAT" = rootmount ]; then
+  # shellcheck disable=SC2086
+  "$CC" $BASE "$REPO_ROOT/tests/vm/rootmount.c" -fuse-ld=lld $RECAULK -o "$W/$WHAT" ||
+    { echo "build-tests: rootmount failed to build" >&2; exit 1; }
+elif [ "$WHAT" = probe-fs ]; then
   # spec: build/build-libfuse.sh "examples" -- libfuse 3's plain struct stat and statvfs, as a Linux-first file system uses
   # shellcheck disable=SC2086
   "$CC" $BASE -DFUSE_DARWIN_ENABLE_EXTENSIONS=0 -I"$T/include/fuse3" "$REPO_ROOT/tests/vm/probe-fs.c" \
