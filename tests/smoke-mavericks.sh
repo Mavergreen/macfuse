@@ -72,7 +72,9 @@ for h in mount_macfuse load_macfuse; do
 done
 ok "/Library/Filesystems/macfuse.fs resolves into the tree; the helpers are setuid root"
 if [ "${SMOKE_FRESH:-1}" = 1 ]; then
-  kextstat | grep -q -e recaulk -e macfuse && fail "a FUSE or Recaulk kext is loaded before any mount"
+  # spec: components/recaulk/version -- the mount loads macfuse.kext and the KPI back-fill it links; Recaulk's boot-time
+  #       kernel fixes (dev.mavergreen.recaulk.kernelfixes, from 20261124.1) load at boot by design and are not ours to judge
+  kextstat | grep -q -e 'dev\.mavergreen\.recaulk\.kpi ' -e macfuse && fail "macfuse.kext or Recaulk's KPI back-fill is loaded before any mount"
   ok "nothing preloaded"
 fi
 
