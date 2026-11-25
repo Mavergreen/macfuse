@@ -132,6 +132,22 @@ The owner unmounting the volume ends the daemon, as an unmount always does.
 
 libfuse 2 does not take `/dev/fd/N`, on macOS or Linux.
 
+## File names: normalized unless you ask
+
+libfuse 3's high-level library converts every name it keeps to decomposed Unicode (NFD), as upstream's does. A file
+created as `café` with a composed `é` is created under that name, but the library remembers it decomposed, so the next
+operation on it hands the file system the decomposed path. A file system that keeps names as given, such as one over
+a Linux disk, then cannot find its own file.
+
+`-o nonorm_insensitive` turns that off for one mount: the library keeps, compares and passes on the bytes the kernel
+sent, as libfuse 2 does by default. Then `café` composed and `café` decomposed are two different names, as they are on
+Linux. `-o norm_insensitive`, libfuse 2's option, is accepted and changes nothing: it is libfuse 3's default.
+`libfuse/patches/library3/` adds both. The low-level API never normalized names, and still does not.
+
+To check for the option before passing it, run the file system with `--help` (`fuse_lib_help()`) and look for
+`-o [no]norm_insensitive`, or require macFUSE 5.5.0-mavericks.5 or later. An older libfuse 3 refuses the option and
+`fuse_new()` fails.
+
 ## MFMount is a C stand-in
 
 Upstream's `MFMount.framework` is Swift that needs the Foundation, Dispatch, OSLog, System and XPC

@@ -310,7 +310,7 @@ echo "== the MFMount device, libfuse /dev/fd/N and osrelease shim tests, on 10.9
 MFMOUNT_SRC="${MFMOUNT_SRC:-${MAVERICKS_BUILD_ROOT:-${TMPDIR:-/tmp}/mm-build}/src}"; export MFMOUNT_SRC
 [ -f "$MFMOUNT_SRC/mount/Mount/Bridge/Trampoline.c" ] ||
   must 1800 "build/fetch-sources.sh $MFMOUNT_SRC" sh "$REPO_ROOT/build/fetch-sources.sh" "$MFMOUNT_SRC" > "$SMOKE_LOGS/fetch-sources.log" 2>&1
-for t in mfmount-device-test.sh libfuse-fd-mountpoint-test.sh osrelease-shim-test.sh; do
+for t in mfmount-device-test.sh libfuse-fd-mountpoint-test.sh libfuse-raw-names-test.sh osrelease-shim-test.sh; do
   bounded 1800 sh "$REPO_ROOT/tests/$t" > "$SMOKE_LOGS/$t.log" 2>&1
   rc=$?
   [ "$rc" -eq 0 ] || fail "tests/$t exited $rc (77 is a skip, 124 a hang, a failure here)"

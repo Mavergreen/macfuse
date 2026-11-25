@@ -1,0 +1,1 @@
+A libfuse 3 file system mounted with -o nonorm_insensitive now gets file names exactly as they were given, instead of converted to decomposed Unicode, as libfuse 2 file systems already do.

@@ -1,0 +1,100 @@
+--- a/lib/fuse.c
++++ b/lib/fuse.c
+@@ -170,6 +170,12 @@ struct fuse {
+ 	struct node_table id_table;
+ #ifdef __APPLE__
+ 	const UNormalizer2 *name_normalizer;
++	/*
++	 * -o nonorm_insensitive: node names are the bytes the kernel sent,
++	 * hashed, compared and handed to the file system as they are, as
++	 * libfuse 2 does unless -o norm_insensitive is given
++	 */
++	int raw_names;
+ #endif
+ 	struct list_head lru_table;
+ 	fuse_ino_t ctr;
+@@ -905,10 +911,12 @@ static int hash_name(struct fuse *f, struct node *node, fuse_ino_t parentid,
+ {
+ #ifdef __APPLE__
+ 	char name_normalized[MAXPATHLEN];
+-	if (normalize_name(f, name, name_normalized,
+-			   sizeof(name_normalized)) == -1)
+-		return -1;
+-	name = name_normalized;
++	if (!f->raw_names) {
++		if (normalize_name(f, name, name_normalized,
++				   sizeof(name_normalized)) == -1)
++			return -1;
++		name = name_normalized;
++	}
+ #endif
+ 
+ 	size_t hash = name_hash(f, parentid, name);
+@@ -972,10 +980,12 @@ static struct node *lookup_node(struct fuse *f, fuse_ino_t parent,
+ {
+ #ifdef __APPLE__
+ 	char name_normalized[MAXPATHLEN];
+-	if (normalize_name(f, name, name_normalized,
+-			   sizeof(name_normalized)) == -1)
+-		return NULL;
+-	name = name_normalized;
++	if (!f->raw_names) {
++		if (normalize_name(f, name, name_normalized,
++				   sizeof(name_normalized)) == -1)
++			return NULL;
++		name = name_normalized;
++	}
+ #endif
+ 
+ 	size_t hash = name_hash(f, parent, name);
+@@ -6202,6 +6212,19 @@ static const struct fuse_opt fuse_lib_opts[] = {
+ 	FUSE_OPT_END
+ };
+ 
++#ifdef __APPLE__
++/*
++ * Parsed into struct fuse before fuse_lib_opts, and consumed there, so that
++ * struct fuse_config keeps upstream's layout and the session never sees them.
++ * norm_insensitive is libfuse 2's option, and this library's default.
++ */
++static const struct fuse_opt fuse_darwin_name_opts[] = {
++	{ "norm_insensitive",	offsetof(struct fuse, raw_names), 0 },
++	{ "nonorm_insensitive",	offsetof(struct fuse, raw_names), 1 },
++	FUSE_OPT_END
++};
++#endif
++
+ static int fuse_lib_opt_proc(void *data, const char *arg, int key,
+ 			     struct fuse_args *outargs)
+ {
+@@ -6252,6 +6275,10 @@ void fuse_lib_help(struct fuse_args *args)
+ "    -o noforget            never forget cached inodes\n"
+ "    -o remember=T          remember cached inodes for T seconds (0s)\n"
+ "    -o modules=M1[:M2...]  names of modules to push onto filesystem stack\n");
++#ifdef __APPLE__
++	printf(
++"    -o [no]norm_insensitive  normalize node names to NFD (on)\n");
++#endif
+ 
+ 
+ 	/* Print low-level help */
+@@ -6449,6 +6476,10 @@ struct fuse *_fuse_new_31(struct fuse_args *args,
+ 	f->conf.intr_signal = FUSE_DEFAULT_INTR_SIGNAL;
+ 
+ 	/* Parse options */
++#ifdef __APPLE__
++	if (fuse_opt_parse(args, f, fuse_darwin_name_opts, NULL) == -1)
++		goto out_free;
++#endif
+ 	if (fuse_opt_parse(args, &f->conf, fuse_lib_opts,
+ 			   fuse_lib_opt_proc) == -1)
+ 		goto out_free;
+@@ -6568,7 +6599,7 @@ struct fuse *_fuse_new_31(struct fuse_args *args,
+ 		goto out_free_name_table;
+ 
+ #ifdef __APPLE__
+-	{
++	if (!f->raw_names) {
+ 		UErrorCode error = U_ZERO_ERROR;
+ 		f->name_normalizer = unorm2_getNFDInstance(&error);
+ 		if (U_FAILURE(error)) {
